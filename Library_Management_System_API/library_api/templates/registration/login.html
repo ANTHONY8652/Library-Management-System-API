@@ -1,0 +1,11 @@
+<h2>Login</h2>
+{% if form.errors %}
+<p> Your username & password did not match. Please try again</p>
+{% endif %}
+<form method="post" action="{% url 'login' %}">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% csrf_token %} {{ form.as_p }}
+    <input type="submit" value="login"/>
+</form>
+<p>Don't have an account? <a href="{% url 'register' %}">Register here</a></p>

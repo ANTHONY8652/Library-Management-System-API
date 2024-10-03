@@ -1,0 +1,13 @@
+<h2>Your Profile</h2>
+{ % if user.is_authenticated %} You are logged in as {{ user }}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<p>Username: {{ user.username }}</p>
+<p>Email: {{ user.email }}</p>
+<form action="{% url 'logout' %}" method = "POST">
+    {% csrf_token %}
+    <button type="submit">Logout</button>
+</form>
+{% else %} You are not logged in
+<a href="{% url 'login' %}">Click here to log in</a>
+{% endif %}

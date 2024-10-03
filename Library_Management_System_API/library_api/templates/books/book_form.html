@@ -1,0 +1,12 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+{% block content %}
+  <h1>{% if form.instance.pk %}Update Book{% else %}Create New Book{% endif %}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{% if form.instance.pk %}Update{% else %}Create{% endif %}</button>
+  </form>
+  <br><a href="{% url 'book-list' %}">Back to All Books</a>
+{% endblock %}

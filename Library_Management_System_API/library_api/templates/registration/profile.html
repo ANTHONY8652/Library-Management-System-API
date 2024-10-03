@@ -1,0 +1,6 @@
+<h2>Your Profile</h2>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<p>Username: {{ user.username }}</p>
+<p>Email: {{ user.email }}</p>
+<a href="{% url 'logout' %}">Logout</a>

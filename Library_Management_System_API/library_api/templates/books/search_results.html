@@ -1,0 +1,9 @@
+<h2>Search Results for "{{ query }}"</h2>
+{% if results %}
+    {% for book in results %}
+        <h3><a href="{% url 'book-detail' book.pk %}">{{ post.title }}</a></h3>
+        <p>{{ book.content|truncatewords:10 }}</p>
+    {% endfor %}
+{% else %}
+    <p>No results found.</p>
+{% endif %}

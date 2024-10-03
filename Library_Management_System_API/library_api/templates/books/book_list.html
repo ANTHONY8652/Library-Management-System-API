@@ -1,0 +1,14 @@
+
+{% block content %}
+  <h1>All Book instances</h1>
+  <ul>
+    {% for book in books %}
+      <li>
+        <small>Written by {{ book.author }} on {{ book.published_date }}</small>
+        <h2>{{ book.title }}</h2>
+        </p>
+    {% endfor %}    
+      </li>
+  </ul>
+  <a href="{% url 'book-create' %}">Create New Book</a>
+{% endblock %}
