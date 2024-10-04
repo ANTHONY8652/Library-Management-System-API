@@ -1,13 +1,65 @@
-<h2>Your Profile</h2>
-{ % if user.is_authenticated %} You are logged in as {{ user }}
-{% load static %}
-<link rel="stylesheet" href="{% static 'css/style.css' %}">
-<p>Username: {{ user.username }}</p>
-<p>Email: {{ user.email }}</p>
-<form action="{% url 'logout' %}" method = "POST">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-</form>
-{% else %} You are not logged in
-<a href="{% url 'login' %}">Click here to log in</a>
-{% endif %}
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Welcome, {{ user.username }}!</h1>
+
+<h2>Your Books</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Author</th>
+      <th>ISBN</th>
+      <th>Published Date</th>
+      <th>Checkout Date</th>
+      <th>Due Date</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for transaction in user.transaction_set.all %}
+    <tr>
+      <td>{{ transaction.book.title }}</td>
+      <td>{{ transaction.book.author }}</td>
+      <td>{{ transaction.book.isbn }}</td>
+      <td>{{ transaction.book.published_date }}</td>
+      <td>{{ transaction.checkout_date }}</td>
+      <td>{{ transaction.due_date }}</td>
+      <td>
+        {% if transaction.return_date %}
+        Returned
+        {% elif transaction.due_date < now %}
+        Overdue
+        {% else %}
+        Checked Out
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Available Books</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Author</th>
+      <th>ISBN</th>
+      <th>Published Date</th>
+      <th>Copies Available</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for book in available_books %}
+    <tr>
+      <td>{{ book.title }}</td>
+      <td>{{ book.author }}</td>
+      <td>{{ book.isbn }}</td>
+      <td>{{ book.published_date }}</td>
+      <td>{{ book.copies_available }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

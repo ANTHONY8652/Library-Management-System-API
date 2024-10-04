@@ -97,7 +97,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'min_length': 9,
+        'min_length': 8,
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -134,6 +134,7 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS':
     'rest_framework.pagination.PageNumberPagination',
@@ -148,5 +149,31 @@ REST_FRAMEWORK = {
 ],  
 }
 
-#LOGIN_REDIRECT_URL = 'books:book-list'
-#LOGOUT_REDIRECT_URL = 'accounts/login'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file_debug': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'library_debug.log',
+        },
+        'file_warning': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': 'library_warning.log',
+        },
+        'file_error': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': 'library_error.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file_debug', 'file_warning', 'file_error'],
+            'level': 'DEBUG',  # Adjust depending on how much info you want
+            'propagate': True,
+        },
+    },
+}

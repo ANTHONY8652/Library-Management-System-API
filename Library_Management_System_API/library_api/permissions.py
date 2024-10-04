@@ -8,3 +8,11 @@ class IsAdminUser(BasePermission):
 class IsMemberUser(BasePermission):
     def has_permission(self, request, view):
         return request.user.userprofile.role == UserProfile.MEMBER
+
+class CanViewBook(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.userprofile.role in ['admin', 'member']
+
+class CanDeleteBook(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.userprofile.role == 'admin'

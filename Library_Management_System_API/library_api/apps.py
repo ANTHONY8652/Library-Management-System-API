@@ -5,6 +5,6 @@ class LibraryApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'library_api'
 
-    #def ready(self):
-        #import library_api.signals
+    def ready(self):
+        import library_api.signals
 
