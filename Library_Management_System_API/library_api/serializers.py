@@ -106,10 +106,15 @@ class UserLoginSerializer(serializers.Serializer):
         
         user = authenticate(username=username, password=password)
         
-        refresh = RefreshToken.for_user(user)
+        if not user:
+            raise serializers.ValidationError({'error': 'Invalid username or password'})
         
+        if not user.is_active:
+            raise serializers.validationError({'error': 'User accpunt is disabled'})
+        
+        refresh = RefreshToken.for_user(user)
         return {
             'user': user,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-        }
+            }

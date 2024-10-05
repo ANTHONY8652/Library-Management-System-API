@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 ##Book CRUD operations
 class BookListCreateView(generics.ListCreateAPIView):
-    queryset = Book.objects.all()
+    queryset = Book.objects.all().order_by('title', 'author')
     serializer_class = BookSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, CanViewBook]
     ordering_fields = ['title', 'published_date']
@@ -37,8 +37,6 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
 class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
-
-
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -65,9 +63,9 @@ class UserRegistrationView(generics.CreateAPIView):
 
 
 class UserProfileListCreateView(generics.ListCreateAPIView):
-    queryset = UserProfile.objects.all().order_by('id')
+    queryset = UserProfile.objects.all().order_by('user')
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser]
 
 class UserProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfile.objects.all()
@@ -169,15 +167,13 @@ class UserLoginView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        refresh = RefreshToken.for_user(user)
-        
+        user = serializer.validated_data['user']        
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            'refresh': serializer.validated_data['refresh'],
+            'access': serializer.validated_data['access'],
         }, status=200)
     
 class UserLogoutView(generics.GenericAPIView):

@@ -13,6 +13,9 @@ class Book(models.Model):
     published_date = models.DateField()
     copies_available = models.PositiveIntegerField(default=0)
 
+    class Meta:
+        ordering = ['title', 'author']
+
     def borrow(self):
         if self.is_available():
             self.copies_available -= 1
@@ -32,6 +35,9 @@ class UserProfile(models.Model):
         (ADMIN, 'Admin'),
         (MEMBER, 'Member'),
     ]
+    class Meta:
+        ordering = ['user']
+
     def validate_role(self):
         if self.role not in ['admin', 'member']:
             raise ValidationError("Role must be either 'admin' or 'member'.")
