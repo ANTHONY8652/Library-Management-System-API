@@ -1,33 +1,81 @@
-{% extends 'base.html' %}
+{% extends 'books/base.html' %}
 
 {% block title %}Home - Library Management System{% endblock %}
 
 {% block content %}
-<h1>Welcome to the Library Management System</h1>
+    <h1>Welcome to the Library Management System</h1>
 
-<p>Here you can browse available books, check out books, and return books.</p>
+    <p>Here you can browse available books, check out books, and return books.</p>
 
-<h2>Available Books</h2>
-<table class="table">
-  <thead>
-    <tr>
-      <th>Title</th>
-      <th>Author</th>
-      <th>ISBN</th>
-      <th>Published Date</th>
-      <th>Copies Available</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for book in available_books %}
-    <tr>
-      <td>{{ book.title }}</td>
-      <td>{{ book.author }}</td>
-      <td>{{ book.isbn }}</td>
-      <td>{{ book.published_date }}</td>
-      <td>{{ book.copies_available }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    <h2>Available Books</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Published Date</th>
+                <th>Copies Available</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in available_books %}
+            <tr>
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.published_date }}</td>
+                <td>{{ book.copies_available }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Recent Books</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Published Date</th>
+                <th>Copies Available</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in recent_books %}
+            <tr>
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.published_date }}</td>
+                <td>{{ book.copies_available }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Popular Books</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Published Date</th>
+                <th>Copies Available</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in popular_books %}
+            <tr>
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.published_date }}</td>
+                <td>{{ book.copies_available }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

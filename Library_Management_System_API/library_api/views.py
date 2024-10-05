@@ -1,13 +1,15 @@
-from rest_framework import filters, permissions, generics, serializers
+from rest_framework import filters, permissions, generics, serializers, status
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
-from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer
+from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer
 from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook
-from django.shortcuts import render #redirect
+from django.shortcuts import render
+from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.pagination import PageNumberPagination, CursorPagination
+from rest_framework_simplejwt.tokens import RefreshToken
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,8 +38,34 @@ class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
+
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=201)
+        return Response(serializer.errors, status=400)
+        
+"""""
+        except serializers.ValidationError as e:
+            return Response({'error': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            return Response({'error': 'An error occurred during registration'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+"""""
+
+
 class UserProfileListCreateView(generics.ListCreateAPIView):
-    queryset = UserProfile.objects.all()
+    queryset = UserProfile.objects.all().order_by('id')
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -71,18 +99,21 @@ class ReturnBookview(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_update(self, serializer):
-        transaction = serializer.instance
-        if transaction.user == self.request.user.userprofile and transaction.return_date is None:
-            transaction.return_date = timezone.now()
-            transaction.book.copies_available += 1
-            transaction.book.save()
-            serializer.save()
-        else:
-            raise serializers.ValidationError('You are not authorized to return this book.')
-
+        try:
+            transaction = serializer.instance
+            if transaction.user == self.request.user.userprofile and transaction.return_date is None:
+                transaction.return_date = timezone.now()
+                transaction.book.copies_available += 1
+                transaction.book.save()
+                serializer.save()
+            else:
+                raise serializers.ValidationError('You are not authorized to return this book.')
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class OverdueBooksView(generics.ListAPIView):
     serializer_class = TransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         return Transaction.objects.filter(return_date__isnull=True, due_date__lt=timezone.now(), user=self.request.user.userprofile)
@@ -132,7 +163,34 @@ class AvailableBooksView(generics.ListAPIView):
         queryset = super().get_queryset()
         return queryset.filter(copies_available__gt=0)
 
+class UserLoginView(generics.GenericAPIView):
+    serializer_class = UserLoginSerializer
 
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=200)
+    
+class UserLogoutView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            refresh_token = request.data['refresh']
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({'message': 'Logged out successfully', 'login_url': reverse('login', request=request)}, status=status.HTTP_200_OK)
+        except KeyError:
+            return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 def profile_view(request):
     return render(request, 'books/profile.html')

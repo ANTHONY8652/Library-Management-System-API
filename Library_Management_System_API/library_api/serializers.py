@@ -1,33 +1,81 @@
 from rest_framework import serializers
 from .models import Book, UserProfile, Transaction
 from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+
 
 class BookSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        title = attrs.get('title')
+        author = attrs.get('author')
+        isbn = attrs.get('isbn')
+        published_date = attrs.get('published_date')
+
+        if not title:
+            raise serializers.ValidationError('Title is required')
+        if not author:
+            raise serializers.ValidationError('Author is required')
+        if not isbn:
+            raise serializers.ValidationError('ISBN is required')
+        if not published_date:
+            raise serializers.ValidationError('Publihsed date is required')
+        
+        return attrs
+    
     class Meta:
         model = Book
         fields = ['id', 'title', 'author', 'isbn', 'published_date']
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        user = attrs.get('user')
+        
+        if not user:
+            raise serializers.ValidationError('User is required')
+        
+        return attrs
+    
     class Meta:
         model = UserProfile
         fields = ['id', 'user']
 
 class TransactionSerializer(serializers.ModelSerializer):
+    def validate_book(self, book):
+        if book.copies_available <= 0:
+            raise serializers.ValidationError('No copies available for checkout')
+        return book
+    
+    def validate(self, attrs):
+        book = attrs.get('book')
+        user = attrs.get('user')
+        checkout_date = attrs.get('checkout_date')
+        return_date = attrs.get('return_date')
+        due_date = attrs.get('due_date')
+
+        if not book:
+            raise serializers.ValidationError('Book is required')
+        if not user:
+            raise serializers.ValidationError('User is required')
+        if not checkout_date:
+            raise serializers.ValidationError('Checkout date is required')
+        if not return_date:
+            raise serializers.ValidationError('Return date is required')
+        if not due_date:
+            raise serializers.ValidationError('Due date is required')
+        if book.copies_available <= 0:
+            raise serializers.ValidationError('No copies available for checkout')
+        
+        return attrs
+    
     class Meta:
         model = Transaction
         fields = ['id', 'book', 'user', 'checkout_date', 'return_date', 'due_date']
-
-    def validate(self, attrs):
-        book = attrs.get('book')
-
-        if book.copies_available <= 0:
-            raise serializers.ValidationError('No copies available for checkout.')
         
-        return attrs
 
+        
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, min_length=8)
-    email = serializers.CharField(required=True, unique=True)
+    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
@@ -36,15 +84,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             'password': {'write_only': True},
         }
     
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError('Password must be at least 8 characters long.')
-        if not any(char.isdigit() for char in value):
-            raise serializers.ValidationError('Password must contain at least one number.')
-        if not any(char.isalpha() for char in value):
-            raise serializers.ValidationError('Password must contain at least one letter.')
-
-
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],
@@ -52,3 +91,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(style={'input_type': 'password'}, trim_whitespace=False)
+
+    def validate(self, data):
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            raise serializers.ValidationError({'error': 'Both username and password are required'})
+        
+        user = authenticate(username=username, password=password)
+        
+        refresh = RefreshToken.for_user(user)
+        
+        return {
+            'user': user,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
