@@ -3,6 +3,7 @@ from .models import Book, UserProfile, Transaction
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -118,3 +119,13 @@ class UserLoginSerializer(serializers.Serializer):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
             }
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token['username'] = user.username
+        token['is_admin'] = user.is_admin
+
+        return token

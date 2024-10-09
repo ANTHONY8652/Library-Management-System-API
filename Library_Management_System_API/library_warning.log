@@ -1654,3 +1654,172 @@ Unauthorized: /users/
 "GET /users/ HTTP/1.1" 401 183
 Unauthorized: /users/
 "GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 3744
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 3725
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 5376
+Method Not Allowed: /login/
+"GET /login/ HTTP/1.1" 405 7441
+Internal Server Error: /books/
+Traceback (most recent call last):
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 497, in dispatch
+    self.initial(request, *args, **kwargs)
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 415, in initial
+    self.check_permissions(request)
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\views.py", line 332, in check_permissions
+    if not permission.has_permission(request, self):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\alx\backend\Library-Management-System-API\Library_Management_System_API\library_api\permissions.py", line 6, in has_permission
+    return request.user.userprofile.role == UserProfile.ADMIN
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AnonymousUser' object has no attribute 'userprofile'
+"GET /books/ HTTP/1.1" 500 104996
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /users/
+"GET /users/ HTTP/1.1" 401 183
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 183
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 183
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 183
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 40
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 40
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Method Not Allowed: /login/
+"GET /login/ HTTP/1.1" 405 7441
+Method Not Allowed: /login/
+"GET /login/ HTTP/1.1" 405 40
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"POST /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Unauthorized: /login/
+"GET /login/ HTTP/1.1" 401 58
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 40
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 40
+Internal Server Error: /api/token/refresh
+Traceback (most recent call last):
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\utils\deprecation.py", line 136, in __call__
+    response = self.process_response(request, response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\middleware\common.py", line 108, in process_response
+    return self.response_redirect_class(self.get_full_path_with_slash(request))
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8000/api/token/refresh/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+"POST /api/token/refresh HTTP/1.1" 500 71405
+Bad Request: /api/token/refresh/
+"POST /api/token/refresh/ HTTP/1.1" 400 39
+Bad Request: /api/token/refresh/
+"POST /api/token/refresh/ HTTP/1.1" 400 35
+Not Found: /qpi/token/
+"GET /qpi/token/ HTTP/1.1" 404 5373
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 7609
+Bad Request: /api/token/
+"POST /api/token/ HTTP/1.1" 400 7714
+Method Not Allowed: /api/token/refresh/
+"GET /api/token/refresh/ HTTP/1.1" 405 7424
+Unauthorized: /api/token/refresh/
+"POST /api/token/refresh/ HTTP/1.1" 401 7419
+Method Not Allowed: /api/token/
+"GET /api/token/ HTTP/1.1" 405 7609
+Method Not Allowed: /api/token/refresh/
+"GET /api/token/refresh/ HTTP/1.1" 405 7424
+Unauthorized: /api/token/refresh/
+"POST /api/token/refresh/ HTTP/1.1" 401 7419
+Unauthorized: /logout/
+"GET /logout/ HTTP/1.1" 401 3748
+Internal Server Error: /logout/
+Traceback (most recent call last):
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\core\handlers\base.py", line 220, in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\django\template\response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\response.py", line 74, in rendered_content
+    ret = renderer.render(self.data, accepted_media_type, context)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\renderers.py", line 727, in render
+    context = self.get_context(data, accepted_media_type, renderer_context)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\renderers.py", line 658, in get_context
+    raw_data_post_form = self.get_raw_data_form(data, view, 'POST', request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\renderers.py", line 554, in get_raw_data_form
+    serializer = view.get_serializer()
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\generics.py", line 112, in get_serializer
+    serializer_class = self.get_serializer_class()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Kang'eri\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\rest_framework\generics.py", line 126, in get_serializer_class
+    assert self.serializer_class is not None, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'UserLogoutView' should either include a `serializer_class` attribute, or override the `get_serializer_class()` method.
+"GET /logout/ HTTP/1.1" 500 99633

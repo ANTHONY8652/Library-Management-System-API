@@ -3,7 +3,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from .views import  (
-    home, profile_view, OverdueBooksView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView
+    home, profile_view, OverdueBooksView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView
  )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -17,6 +17,7 @@ urlpatterns = [
     ##Token Views
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', MyTokenObtainPairView.as_view, name='token-verify'),
     #profile_view
     path('profile/', profile_view, name='profile'),
     ##Home View

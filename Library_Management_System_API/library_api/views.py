@@ -1,7 +1,7 @@
 from rest_framework import filters, permissions, generics, serializers, status
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
-from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer
+from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer
 from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook
 from django.shortcuts import render
 from rest_framework.reverse import reverse
@@ -10,6 +10,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,16 +43,19 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            
             refresh = RefreshToken.for_user(user)
 
             return Response({
                 'id': user.id,
                 'username': user.username,
-                'email': user.email,
+                'email': user.email,               
+                'message': f'{user} created successfully.Redirecting to login...',
+                'login_url': 'login/',
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-            }, status=201)
-        return Response(serializer.errors, status=400)
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
 """""
         except serializers.ValidationError as e:
@@ -140,10 +144,6 @@ class StandardResultsSetPagination(PageNumberPagination):
 class CustomPagination(PageNumberPagination):
     def get_paginated_response(self, data):
         return Response({
-            'total_items': self.page.paginator.count,
-            'total_pages': self.page.paginator.num_pages,
-            'current_page': self.page.number,
-            'results': data
         })
 
 class MyCursorPagination(CursorPagination):
@@ -163,11 +163,14 @@ class AvailableBooksView(generics.ListAPIView):
 
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer
-
+    permissions_classes = [permissions.AllowAny]
+  
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']        
+        print(serializer.validated_data['user'])
+        user = serializer.validated_data['user'] 
+        print('user', user)       
         return Response({
             'id': user.id,
             'username': user.username,
@@ -196,5 +199,9 @@ def home(request):
 
 def checkout_book_view(request, book_id):
     logger.debug(f'User {request.user.username} checked out book with ID: {book_id}')
+
+#check if your token is still valid view
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
 
 # Create your views here.

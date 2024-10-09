@@ -125,3 +125,15 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} checked out {self.book.title}"
+
+"""   
+class BlackListedToken(models.Model):
+    token = models.ForeignKey(max_length=500)
+    user = models.ForeignKey(User, related_name='token_user', on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('token', 'user')
+
+class IsTokenValid(BasePermission):
+"""
