@@ -11,7 +11,7 @@ class Book(models.Model):
     author = models.CharField(max_length=100)
     isbn = models.CharField(max_length=13, unique=True)
     published_date = models.DateField()
-    copies_available = models.PositiveIntegerField(default=0)
+    copies_available = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ['title', 'author']
@@ -126,14 +126,3 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.user.username} checked out {self.book.title}"
 
-"""   
-class BlackListedToken(models.Model):
-    token = models.ForeignKey(max_length=500)
-    user = models.ForeignKey(User, related_name='token_user', on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('token', 'user')
-
-class IsTokenValid(BasePermission):
-"""

@@ -26,7 +26,7 @@ class BookSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Book
-        fields = ['id', 'title', 'author', 'isbn', 'published_date']
+        fields = ['id', 'title', 'author', 'isbn', 'published_date', 'copies_available']
 
 class UserProfileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):

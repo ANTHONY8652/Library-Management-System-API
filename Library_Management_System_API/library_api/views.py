@@ -22,7 +22,6 @@ class BookListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, CanViewBook]
     ordering_fields = ['title', 'published_date']
 
-
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
@@ -31,7 +30,8 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         if instance.copies_available > 0:
             raise serializers.ValidationError('You cannot delete a book that has copies available')
-        logger.debug(f'Book {instance.title} deleted by {self.request.user.username}')  
+        logger.debug(f'Book {instance.title} deleted by {self.request.user.username}')
+
         instance.delete()
 
 ##User views
@@ -50,38 +50,30 @@ class UserRegistrationView(generics.CreateAPIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,               
-                'message': f'{user} created successfully.Redirecting to login...',
-                'login_url': 'login/',
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
+                'message': f'{user} created successfully.Redirecting to login...',
+                'redirect_url': 'http://localhost:8000/login/',
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-"""""
-        except serializers.ValidationError as e:
-            return Response({'error': e.detail}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            return Response({'error': 'An error occurred during registration'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-"""""
-
 
 class UserProfileListCreateView(generics.ListCreateAPIView):
     queryset = UserProfile.objects.all().order_by('user')
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, permissions.IsAuthenticated]
 
 class UserProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, IsMemberUser]
 
 
 ##Transaction ViewSsss Controller
 
 class CheckOutBookView(generics.CreateAPIView):
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsMemberUser]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsMemberUser, IsAdminUser]
 
     def perform_create(self, serializer):
         book = serializer.validated_data['book']
@@ -98,7 +90,7 @@ class CheckOutBookView(generics.CreateAPIView):
 class ReturnBookview(generics.UpdateAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsMemberUser, IsAdminUser]
 
     def perform_update(self, serializer):
         try:
@@ -115,7 +107,7 @@ class ReturnBookview(generics.UpdateAPIView):
 
 class OverdueBooksView(generics.ListAPIView):
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsMemberUser, IsAdminUser]
     
     def get_queryset(self):
         return Transaction.objects.filter(return_date__isnull=True, due_date__lt=timezone.now(), user=self.request.user.userprofile)
@@ -177,6 +169,7 @@ class UserLoginView(generics.GenericAPIView):
             'email': user.email,
             'refresh': serializer.validated_data['refresh'],
             'access': serializer.validated_data['access'],
+            'redirect_url': 'http://localhost:8000/available-books/',
         }, status=200)
     
 class UserLogoutView(generics.GenericAPIView):

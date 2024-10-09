@@ -140,21 +140,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS':
-    'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 22, #I have set the pagination to 22
-    'DEFAULT_AUTHENTICATION_CLASSES': [ 
+    'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 100, #I have set the Limit Offset Pagination to 100
+    'DEFAULT_AUTHENTICATION_CLASSES': ( 
         'rest_framework.authentication.BasicAuthentication', 
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
+    ),
     
-    'DEFAULT_PERMISSION_CLASSES': [ 
+    'DEFAULT_PERMISSION_CLASSES': ( 
         'rest_framework.permissions.IsAuthenticated',
-    ],
+    ),
 } 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=500),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -185,7 +185,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['file_debug', 'file_warning', 'file_error'],
-            'level': 'DEBUG',  # Adjust depending on how much info you want
+            'level': 'DEBUG',
             'propagate': True,
         },
     },
