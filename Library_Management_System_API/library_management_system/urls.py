@@ -16,8 +16,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.schemas import get_schema_view
+from rest_framework.renderers import JSONOpenAPIRenderer
+
+schema_view = get_schema_view(
+    title = 'Library Management API',
+    description = 'A library management api that allows users to easily access available books in the library also be able to checkout the users favorite book or desired book and return it after 14 days after the 14 days you get fined and any additional day after',
+    version = '1.0.0',
+    renderer_classes = [JSONOpenAPIRenderer]
+
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('library_api.urls')),
+    path('', schema_view, name='api-schema'),
 ]
