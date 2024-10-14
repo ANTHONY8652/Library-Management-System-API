@@ -16,19 +16,31 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework.schemas import get_schema_view
-from rest_framework.renderers import JSONOpenAPIRenderer
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
 
 schema_view = get_schema_view(
-    title = 'Library Management API',
-    description = 'A library management api that allows users to easily access available books in the library also be able to checkout the users favorite book or desired book and return it after 14 days after the 14 days you get fined and any additional day after',
-    version = '1.0.0',
-    renderer_classes = [JSONOpenAPIRenderer]
-
+    openapi.Info(
+        title='Library Management API',
+        default_version = '1.0.0',
+        description =(
+            "This API provides comprehensive functionality for managing a library system, "
+            "enabling users to interact with a digital library platform. It supports user "
+            "authentication, book management, and user interactions, including borrowing and "
+            "returning books, managing user accounts, and tracking book availability."
+        ),
+        terms_of_service="https://www.google.com/policies/terms/",
+        contact = openapi.Contact(email='githinjianthony720@gmail.com'),
+        license = openapi.License(name='BSD License'),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
 )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('library_api.urls')),
-    path('', schema_view, name='api-schema'),
+    path('api/', include('library_api.urls')),
+    path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-with-ui'),
 ]

@@ -1,4 +1,5 @@
 from rest_framework import filters, permissions, generics, serializers, status
+from rest_framework.views import APIView
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
 from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer
@@ -172,17 +173,29 @@ class UserLoginView(generics.GenericAPIView):
             'redirect_url': 'http://localhost:8000/available-books/',
         }, status=200)
     
-class UserLogoutView(generics.GenericAPIView):
+class UserLogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
         try:
-            refresh_token = request.data['refresh']
+            print('Reqest data for logout', request.data)
+            
+            refresh_token = request.data.get('refresh')
+
+            if not refresh_token:
+                return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
             token = RefreshToken(refresh_token)
             token.blacklist()
+
+            print('Token blacklisted successfully:', refresh_token)
             return Response({'message': 'Logged out successfully', 'login_url': reverse('login', request=request)}, status=status.HTTP_200_OK)
-        except KeyError:
-            return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            print('error during logout:', str(e))
+
+            return Response({'error': 'An error occured while logging out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 def profile_view(request):
     return render(request, 'books/profile.html')
