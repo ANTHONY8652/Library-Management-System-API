@@ -9,6 +9,7 @@ from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -20,13 +21,13 @@ logger = logging.getLogger(__name__)
 class BookListCreateView(generics.ListCreateAPIView):
     queryset = Book.objects.all().order_by('title', 'author')
     serializer_class = BookSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, CanViewBook]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAdminUser, CanViewBook, IsMemberUser]
     ordering_fields = ['title', 'published_date']
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, CanViewBook, CanDeleteBook]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAdminUser, IsMemberUser, CanViewBook, CanDeleteBook]
 
     def perform_destroy(self, instance):
         if instance.copies_available <= 0:

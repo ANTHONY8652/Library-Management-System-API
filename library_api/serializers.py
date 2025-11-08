@@ -12,6 +12,7 @@ class BookSerializer(serializers.ModelSerializer):
         author = attrs.get('author')
         isbn = attrs.get('isbn')
         published_date = attrs.get('published_date')
+        copies_available = attrs.get('copies_available')
 
         if not title:
             raise serializers.ValidationError('Title is required')
@@ -20,7 +21,9 @@ class BookSerializer(serializers.ModelSerializer):
         if not isbn:
             raise serializers.ValidationError('ISBN is required')
         if not published_date:
-            raise serializers.ValidationError('Publihsed date is required')
+            raise serializers.ValidationError('Published date is required')
+        if not copies_available:
+            raise serializers.ValidationError('There must be more than a single copy available')
         
         return attrs
     
@@ -42,10 +45,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user']
 
 class TransactionSerializer(serializers.ModelSerializer):
+
+    def is_available(self):
+        if self.copies_available >= 1:
+            return self.book
+        else:
+            return serializers.ValidationError(f'{self.title} is not available')
+    """     
     def validate_book(self, book):
         if book.copies_available <= 0:
             raise serializers.ValidationError('No copies available for checkout')
         return book
+    """
+    def borrow(self):
+        if self.is_available():
+            self.copies_available -= 1
+            self.book.save()
+        else:
+            raise serializers.ValidationError('That book does not have any available copies to check out.')
     
     def validate(self, attrs):
         book = attrs.get('book')
@@ -64,7 +81,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Return date is required')
         if not due_date:
             raise serializers.ValidationError('Due date is required')
-        if book.copies_available <= 0:
+        if book.copies_available == 0:
             raise serializers.ValidationError('No copies available for checkout')
         
         return attrs

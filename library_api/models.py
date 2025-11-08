@@ -15,6 +15,11 @@ class Book(models.Model):
 
     class Meta:
         ordering = ['title', 'author']
+    
+    def is_available(self):
+        if self.copies_available <= 1:
+            raise Exception(f'The {self.title} book is not available for checking out ')
+        return self.book
 
     def borrow(self):
         if self.is_available():
@@ -23,8 +28,6 @@ class Book(models.Model):
         else:
             raise Exception('Book is not available for borrowing')
     
-    def is_available(self):
-        return self.copies_available > 0
     def __str__(self):
         return self.title
 
@@ -125,4 +128,3 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} checked out {self.book.title}"
-
