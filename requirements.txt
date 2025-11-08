@@ -1,7 +1,29 @@
-Python==3.12.7
+# Django Framework
 Django==5.0.7
+
+# Django REST Framework
 djangorestframework==3.14.0
-django-filter==23.2
+
+# API Documentation (Swagger/ReDoc)
+drf-yasg==1.21.7
+
+# Authentication
 djangorestframework-simplejwt==5.2.2
+
+# Database
 psycopg2-binary==2.9.6
+
+# Filtering
+django-filter==23.2
+
+# CORS Headers
+django-cors-headers==4.3.1
+
+# Environment Variables
 python-dotenv==1.0.0
+
+# Production Server
+gunicorn==21.2.0
+
+# Static Files (Production)
+whitenoise==6.6.0

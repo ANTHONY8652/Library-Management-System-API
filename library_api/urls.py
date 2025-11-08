@@ -3,7 +3,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from .views import  (
-    home, profile_view, OverdueBooksView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView
+    home, profile_view, OverdueBooksView, MyBooksView, TransactionHistoryView, CurrentUserProfileView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView
  )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -34,7 +34,10 @@ urlpatterns = [
     path('checkout/', CheckOutBookView.as_view(), name='checkout-book'),
     path('return/<int:pk>/', ReturnBookview.as_view(), name='return-book'),
     path('available-books/', AvailableBooksView.as_view(), name='available-books'),
+    path('my-books/', MyBooksView.as_view(), name='my-books'),
+    path('transaction-history/', TransactionHistoryView.as_view(), name='transaction-history'),
     path('overdue-books/', OverdueBooksView.as_view(), name='overdue-books'),
+    path('my-profile/', CurrentUserProfileView.as_view(), name='current-user-profile'),
 
 ]
 #if settings.DEBUG:

@@ -69,6 +69,14 @@ class UserProfile(models.Model):
     def is_admin(self):
         return self.role == 'admin'
     
+    def has_outstanding_transactions(self, book):
+        """Check if user has an outstanding (not returned) transaction for a book"""
+        return Transaction.objects.filter(
+            user=self.user,
+            book=book,
+            return_date__isnull=True
+        ).exists()
+    
     def __str__(self):
         return self.user.username
 
@@ -89,9 +97,20 @@ class Transaction(models.Model):
     overdue_penalty = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
 
     def save(self, *args, **kwargs):
-        if not self.due_date:
-            self.due_date = self.checkout_date + timedelta(days=30 if self.user.userprofile.role == 'admin' else 14)
+        # Auto-calculate due_date if not set and we have checkout_date and user
+        if not self.due_date and self.checkout_date and self.user:
+            try:
+                user_profile = self.user.userprofile
+                loan_days = 30 if user_profile.role == 'admin' else 14
+                self.due_date = self.checkout_date + timedelta(days=loan_days)
+            except UserProfile.DoesNotExist:
+                # Fallback to default 14 days if userprofile doesn't exist
+                self.due_date = self.checkout_date + timedelta(days=14)
+        
+        # Calculate penalty if transaction is overdue
+        if self.return_date is None and self.due_date:
             self.calculate_penalty()
+        
         super().save(*args, **kwargs)
 
     def mark_as_returned(self):

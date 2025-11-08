@@ -32,6 +32,9 @@ class BookSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'author', 'isbn', 'published_date', 'copies_available']
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    
     def validate(self, attrs):
         user = attrs.get('user')
         
@@ -42,9 +45,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserProfile
-        fields = ['id', 'user']
+        fields = ['id', 'user', 'username', 'email', 'role', 'date_of_membership', 'active_status', 'loan_duration']
 
 class TransactionSerializer(serializers.ModelSerializer):
+    # For writing: accept book ID (PrimaryKeyRelatedField)
+    # For reading: include full book details via to_representation
+    book = serializers.PrimaryKeyRelatedField(queryset=Book.objects.all(), required=False)
+    
+    def to_representation(self, instance):
+        """Include full book details when reading"""
+        representation = super().to_representation(instance)
+        if instance.book:
+            representation['book'] = BookSerializer(instance.book).data
+        return representation
 
     def is_available(self):
         if self.copies_available >= 1:
@@ -71,16 +84,16 @@ class TransactionSerializer(serializers.ModelSerializer):
         return_date = attrs.get('return_date')
         due_date = attrs.get('due_date')
 
+        # Handle both 'book' and 'book_id' for backward compatibility
+        book = attrs.get('book')
         if not book:
             raise serializers.ValidationError('Book is required')
-        if not user:
-            raise serializers.ValidationError('User is required')
-        if not checkout_date:
-            raise serializers.ValidationError('Checkout date is required')
-        if not return_date:
-            raise serializers.ValidationError('Return date is required')
-        if not due_date:
-            raise serializers.ValidationError('Due date is required')
+        
+        # Checkout date is required, but can be set in view if not provided
+        # User is set automatically in perform_create, so don't require it here
+        
+        # Only validate return_date and due_date if they're provided (for returns/updates)
+        # During checkout, these are optional (return_date should be None, due_date auto-calculated)
         if book.copies_available == 0:
             raise serializers.ValidationError('No copies available for checkout')
         
@@ -88,7 +101,13 @@ class TransactionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Transaction
-        fields = ['id', 'book', 'user', 'checkout_date', 'return_date', 'due_date']
+        fields = ['id', 'book', 'user', 'checkout_date', 'return_date', 'due_date', 'overdue_penalty']
+        extra_kwargs = {
+            'user': {'required': False},  # Set automatically in perform_create
+            'checkout_date': {'required': False},  # Can be set in perform_create if not provided
+            'due_date': {'required': False},  # Auto-calculated
+            'return_date': {'required': False}  # None for new checkouts
+        }
         
 
         

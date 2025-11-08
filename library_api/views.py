@@ -3,13 +3,13 @@ from rest_framework.views import APIView
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
 from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer
-from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook
+from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember
 from django.shortcuts import render
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -21,13 +21,14 @@ logger = logging.getLogger(__name__)
 class BookListCreateView(generics.ListCreateAPIView):
     queryset = Book.objects.all().order_by('title', 'author')
     serializer_class = BookSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsAdminUser, CanViewBook, IsMemberUser]
+    permission_classes = [IsAuthenticatedOrReadOnly, CanViewBook]
+    pagination_class = StandardResultsSetPagination
     ordering_fields = ['title', 'published_date']
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsAdminUser, IsMemberUser, CanViewBook, CanDeleteBook]
+    permission_classes = [CanViewBook]  # Simplified - CanViewBook handles both read and write
 
     def perform_destroy(self, instance):
         if instance.copies_available <= 0:
@@ -46,12 +47,20 @@ class UserRegistrationView(generics.CreateAPIView):
         if serializer.is_valid():
             user = serializer.save()
             
+            # Get user role from profile
+            role = 'member'  # default
+            try:
+                role = user.userprofile.role
+            except:
+                pass
+            
             refresh = RefreshToken.for_user(user)
 
             return Response({
                 'id': user.id,
                 'username': user.username,
-                'email': user.email,               
+                'email': user.email,
+                'role': role,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
                 'message': f'{user} created successfully.Redirecting to login...',
@@ -68,51 +77,127 @@ class UserProfileListCreateView(generics.ListCreateAPIView):
 class UserProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, IsMemberUser]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminOrMember]
 
 
 ##Transaction ViewSsss Controller
 
 class CheckOutBookView(generics.CreateAPIView):
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsMemberUser, IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
 
     def perform_create(self, serializer):
-        book = serializer.validated_data['book']
+        book = serializer.validated_data.get('book')
+        if not book:
+            raise serializers.ValidationError('Book is required')
+        
         if book.copies_available > 0:
-            if self.request.user.userprofile.has_outstanding_transactions(book):
-                raise serializers.ValidationError('You already have an outstanding transaction for this book')
+            # Check for outstanding transactions
+            try:
+                if self.request.user.userprofile.has_outstanding_transactions(book):
+                    raise serializers.ValidationError('You already have an outstanding transaction for this book')
+            except Exception as e:
+                # If userprofile doesn't exist or other error, log and continue
+                logger.error(f'Error checking outstanding transactions: {e}')
+            
+            # Decrease available copies
             book.copies_available -= 1
             book.save()
-            due_date = timezone.now() + timedelta(days=14)
-            serializer.save(user=self.request.user.userprofile, due_date=due_date)
+            
+            # Calculate due date based on user role (14 days for members, 30 for admins)
+            try:
+                user_profile = self.request.user.userprofile
+                loan_days = 30 if user_profile.role == 'admin' else 14
+            except:
+                # Default to 14 days if userprofile doesn't exist
+                loan_days = 14
+                logger.warning(f'UserProfile not found for user {self.request.user.username}, using default loan duration')
+            
+            due_date = timezone.now().date() + timedelta(days=loan_days)
+            
+            # Get checkout_date from validated_data or use today
+            checkout_date = serializer.validated_data.get('checkout_date') or timezone.now().date()
+            
+            # Save transaction with User (not UserProfile) and auto-calculated due_date
+            serializer.save(
+                user=self.request.user,  # Transaction.user is ForeignKey to User, not UserProfile
+                checkout_date=checkout_date,
+                due_date=due_date,
+                return_date=None  # Explicitly set to None for new checkout
+            )
         else:
             raise serializers.ValidationError('No copies available for checkout')
 
 class ReturnBookview(generics.UpdateAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsMemberUser, IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
 
     def perform_update(self, serializer):
         try:
             transaction = serializer.instance
-            if transaction.user == self.request.user.userprofile and transaction.return_date is None:
-                transaction.return_date = timezone.now()
+            # Check if user owns this transaction and it's not already returned
+            if transaction.user == self.request.user and transaction.return_date is None:
+                # Set return date to today
+                transaction.return_date = timezone.now().date()  # Use .date() not datetime
+                
+                # Increase available copies
                 transaction.book.copies_available += 1
                 transaction.book.save()
+                
+                # Recalculate penalty if overdue
+                transaction.calculate_penalty()
+                
+                # Save the transaction
                 serializer.save()
             else:
-                raise serializers.ValidationError('You are not authorized to return this book.')
+                if transaction.return_date is not None:
+                    raise serializers.ValidationError('This book has already been returned.')
+                else:
+                    raise serializers.ValidationError('You are not authorized to return this book.')
+        except serializers.ValidationError:
+            raise  # Re-raise validation errors
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class OverdueBooksView(generics.ListAPIView):
+class MyBooksView(generics.ListAPIView):
+    """Get all currently borrowed books (not returned) for the authenticated user"""
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsMemberUser, IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
+    pagination_class = StandardResultsSetPagination
     
     def get_queryset(self):
-        return Transaction.objects.filter(return_date__isnull=True, due_date__lt=timezone.now(), user=self.request.user.userprofile)
+        return Transaction.objects.filter(
+            return_date__isnull=True,
+            user=self.request.user
+        ).select_related('book').order_by('-checkout_date')
+
+class TransactionHistoryView(generics.ListAPIView):
+    """Get all transactions (including returned) for the authenticated user"""
+    serializer_class = TransactionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        return Transaction.objects.filter(
+            user=self.request.user
+        ).select_related('book').order_by('-checkout_date')
+
+class CurrentUserProfileView(generics.RetrieveAPIView):
+    """Get current user's profile"""
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_object(self):
+        return self.request.user.userprofile
+
+class OverdueBooksView(generics.ListAPIView):
+    serializer_class = TransactionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
+    pagination_class = StandardResultsSetPagination
+    
+    def get_queryset(self):
+        return Transaction.objects.filter(return_date__isnull=True, due_date__lt=timezone.now().date(), user=self.request.user)
 
 class BookFilter(filters.FilterSet):
     title = filters.CharFilter(field_name='title',lookup_expr='icontains')
@@ -157,18 +242,25 @@ class AvailableBooksView(generics.ListAPIView):
 
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer
-    permissions_classes = [permissions.AllowAny]
+    permission_classes = [permissions.AllowAny]
   
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        print(serializer.validated_data['user'])
-        user = serializer.validated_data['user'] 
-        print('user', user)       
+        user = serializer.validated_data['user']
+        
+        # Get user role from profile
+        role = 'member'  # default
+        try:
+            role = user.userprofile.role
+        except:
+            pass
+        
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
+            'role': role,
             'refresh': serializer.validated_data['refresh'],
             'access': serializer.validated_data['access'],
             'redirect_url': 'http://localhost:8000/available-books/',
@@ -179,8 +271,6 @@ class UserLogoutView(APIView):
     
     def post(self, request):
         try:
-            print('Reqest data for logout', request.data)
-            
             refresh_token = request.data.get('refresh')
 
             if not refresh_token:
@@ -189,11 +279,11 @@ class UserLogoutView(APIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
 
-            print('Token blacklisted successfully:', refresh_token)
+            logger.info(f'Token blacklisted successfully for user: {request.user.username}')
             return Response({'message': 'Logged out successfully', 'login_url': reverse('login', request=request)}, status=status.HTTP_200_OK)
         
         except Exception as e:
-            print('error during logout:', str(e))
+            logger.error(f'Error during logout: {str(e)}')
 
             return Response({'error': 'An error occured while logging out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
