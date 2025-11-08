@@ -12,7 +12,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
+from dotenv import load_dotenv
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
-SECRET_KEY = 'django-insecure-c7x_n(2+@og&u5jm8(o99egh1(ktu+t*l7emi9mgg&o-f8ub6='
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS')
 
 
 # Application definition
@@ -85,11 +86,11 @@ WSGI_APPLICATION = 'library_management_system.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'Temp Library Management Database',
-        'USER': 'anthony',
-        'PASSWORD': 'Indie@kangeri22',
-        'HOST': 'localhost',
-        'PORT': '5555',
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
     }
 }
 
@@ -117,13 +118,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE")
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.getenv("TIME_ZONE")
 
-USE_I18N = True
+USE_I18N = os.getenv("USE_I18N")
 
-USE_TZ = True
+USE_TZ = os.getenv("USE_TZ")
 
 
 # Static files (CSS, JavaScript, Images)
@@ -141,7 +142,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS':
     'rest_framework.pagination.LimitOffsetPagination',
-    'PAGE_SIZE': 100, #I have set the Limit Offset Pagination to 100
+    'PAGE_SIZE': 100, #I have set the Limit Offset Pagination to 100 you never know
     'DEFAULT_AUTHENTICATION_CLASSES': ( 
         'rest_framework.authentication.BasicAuthentication', 
         'rest_framework.authentication.SessionAuthentication',

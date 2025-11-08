@@ -29,8 +29,8 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, CanViewBook, CanDeleteBook]
 
     def perform_destroy(self, instance):
-        if instance.copies_available > 0:
-            raise serializers.ValidationError('You cannot delete a book that has copies available')
+        if instance.copies_available <= 0:
+            raise serializers.ValidationError('You cannot delete a book that has no copies currently available')
         logger.debug(f'Book {instance.title} deleted by {self.request.user.username}')
 
         instance.delete()
