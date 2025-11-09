@@ -211,7 +211,21 @@ run_migrations.permission_classes = [permissions.AllowAny]
 
 @api_view(['POST'])
 def create_admin_user(request):
-    """Create superuser - accepts username, email, password in request body"""
+    """Create superuser - requires authenticated superuser (SECURED)"""
+    # Require authentication and superuser status
+    if not request.user.is_authenticated:
+        return Response({
+            'status': 'error',
+            'message': 'Authentication required. You must be logged in as a superuser.',
+            'hint': 'Use Django admin login or session authentication'
+        }, status=401)
+    
+    if not request.user.is_superuser:
+        return Response({
+            'status': 'error',
+            'message': 'Permission denied. Only superusers can create admin accounts.',
+        }, status=403)
+    
     import os
     from django.contrib.auth import get_user_model
     
@@ -228,7 +242,7 @@ def create_admin_user(request):
             'status': 'error',
             'message': 'username and password are required',
             'example': {
-                'username': 'admin',
+                'username': 'newadmin',
                 'email': 'admin@example.com',
                 'password': 'your-secure-password'
             }
@@ -263,7 +277,7 @@ def create_admin_user(request):
             'email': email,
             'is_superuser': user.is_superuser,
             'is_staff': user.is_staff,
-            'next_step': f'Go to /admin/ and login with username: {username}'
+            'next_step': f'New admin can login at /admin/ with username: {username}'
         }, status=200)
         
     except Exception as e:
@@ -274,7 +288,8 @@ def create_admin_user(request):
             'error': str(e),
             'traceback': traceback.format_exc() if settings.DEBUG else None
         }, status=500)
-create_admin_user.permission_classes = [permissions.AllowAny]
+# Require authentication - only superusers can access
+create_admin_user.permission_classes = [permissions.IsAuthenticated]
 
 def root_view(request):
     """Root endpoint - redirects to Swagger UI"""
@@ -296,7 +311,9 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
     path('migrate/', run_migrations, name='run-migrations'),
-    path('create-admin/', create_admin_user, name='create-admin'),
+    # Admin creation endpoint - SECURED: Only authenticated superusers can access
+    # To completely disable, set ENABLE_CREATE_ADMIN_ENDPOINT=false in environment
+    # path('create-admin/', create_admin_user, name='create-admin'),  # DISABLED
     path('', root_view, name='root'),
 ]
 
