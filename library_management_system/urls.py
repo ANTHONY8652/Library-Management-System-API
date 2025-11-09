@@ -209,6 +209,73 @@ def run_migrations(request):
         }, status=500)
 run_migrations.permission_classes = [permissions.AllowAny]
 
+@api_view(['POST'])
+def create_admin_user(request):
+    """Create superuser - accepts username, email, password in request body"""
+    import os
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    
+    # Get credentials from request body
+    username = request.data.get('username') or request.POST.get('username')
+    email = request.data.get('email') or request.POST.get('email', '')
+    password = request.data.get('password') or request.POST.get('password')
+    
+    # Validate required fields
+    if not username or not password:
+        return Response({
+            'status': 'error',
+            'message': 'username and password are required',
+            'example': {
+                'username': 'admin',
+                'email': 'admin@example.com',
+                'password': 'your-secure-password'
+            }
+        }, status=400)
+    
+    try:
+        # Check if user already exists
+        user, created = User.objects.get_or_create(username=username)
+        
+        if created:
+            # New user - create as superuser
+            user.is_superuser = True
+            user.is_staff = True
+            user.email = email
+            user.set_password(password)
+            user.save()
+            message = f'Successfully created superuser "{username}"'
+        else:
+            # Existing user - update to superuser
+            user.is_superuser = True
+            user.is_staff = True
+            if email:
+                user.email = email
+            user.set_password(password)
+            user.save()
+            message = f'Successfully updated user "{username}" to superuser'
+        
+        return Response({
+            'status': 'success',
+            'message': message,
+            'username': username,
+            'email': email,
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+            'next_step': f'Go to /admin/ and login with username: {username}'
+        }, status=200)
+        
+    except Exception as e:
+        import traceback
+        return Response({
+            'status': 'error',
+            'message': 'Error creating superuser',
+            'error': str(e),
+            'traceback': traceback.format_exc() if settings.DEBUG else None
+        }, status=500)
+create_admin_user.permission_classes = [permissions.AllowAny]
+
 def root_view(request):
     """Root endpoint - redirects to Swagger UI"""
     if schema_view:
@@ -229,6 +296,7 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
     path('migrate/', run_migrations, name='run-migrations'),
+    path('create-admin/', create_admin_user, name='create-admin'),
     path('', root_view, name='root'),
 ]
 
