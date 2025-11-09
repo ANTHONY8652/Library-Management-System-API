@@ -178,6 +178,44 @@ def db_health_check(request):
         }, status=503)
 db_health_check.permission_classes = [permissions.AllowAny]
 
+@api_view(['POST'])
+def run_migrations(request):
+    """Run database migrations - SECURE: requires secret key"""
+    import os
+    from django.core.management import call_command
+    from io import StringIO
+    
+    # Security: Require a secret key in the request
+    provided_key = request.data.get('secret_key') or request.query_params.get('secret_key')
+    expected_key = os.getenv('DJANGO_SECRET_KEY')
+    
+    if not provided_key or provided_key != expected_key:
+        return Response({
+            'error': 'Unauthorized',
+            'message': 'Secret key required to run migrations'
+        }, status=401)
+    
+    try:
+        # Capture migration output
+        out = StringIO()
+        call_command('migrate', '--noinput', stdout=out, stderr=out)
+        output = out.getvalue()
+        
+        return Response({
+            'status': 'success',
+            'message': 'Migrations completed successfully',
+            'output': output
+        }, status=200)
+    except Exception as e:
+        import traceback
+        return Response({
+            'status': 'error',
+            'message': 'Migration failed',
+            'error': str(e),
+            'traceback': traceback.format_exc() if settings.DEBUG else None
+        }, status=500)
+run_migrations.permission_classes = [permissions.AllowAny]
+
 def root_view(request):
     """Root endpoint - redirects to Swagger UI"""
     if schema_view:
@@ -197,6 +235,7 @@ urlpatterns = [
     path('api/', include('library_api.urls')),
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
+    path('migrate/', run_migrations, name='run-migrations'),  # Secure migration endpoint
     path('', root_view, name='root'),  # Simple root endpoint that doesn't depend on Swagger
 ]
 
