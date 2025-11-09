@@ -255,6 +255,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ( 
         'rest_framework.permissions.AllowAny',  # Changed to AllowAny - individual views can override
     ),
+    
+    # Custom exception handler to return JSON instead of HTML
+    'EXCEPTION_HANDLER': 'library_api.exceptions.custom_exception_handler',
 } 
 
 SIMPLE_JWT = {

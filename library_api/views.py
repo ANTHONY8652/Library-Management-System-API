@@ -43,18 +43,18 @@ class BookListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         """Override to handle potential database errors"""
         try:
-            from django.db import connection
-            # Test database connection first
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-            
-            # If connection works, get books
+            # Try to get books - let Django handle the connection
             return Book.objects.all().order_by('title', 'author')
         except Exception as e:
             logger.error(f"Error fetching books: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
-            return Book.objects.none()
+            # Return empty queryset to avoid crashing
+            try:
+                return Book.objects.none()
+            except:
+                # If even .none() fails, return empty list
+                return []
     
     def list(self, request, *args, **kwargs):
         """Override list to handle errors gracefully"""
@@ -71,9 +71,16 @@ class BookListCreateView(generics.ListCreateAPIView):
             }, status=500)
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Book.objects.all()
     serializer_class = BookSerializer
     permission_classes = [CanViewBook]  # Simplified - CanViewBook handles both read and write
+    
+    def get_queryset(self):
+        """Get queryset with error handling"""
+        try:
+            return Book.objects.all()
+        except Exception as e:
+            logger.error(f"Error in BookDetailView.get_queryset: {str(e)}")
+            return Book.objects.none()
 
     def perform_destroy(self, instance):
         if instance.copies_available <= 0:
@@ -277,19 +284,19 @@ class AvailableBooksView(generics.ListAPIView):
     def get_queryset(self):
         """Get available books with error handling"""
         try:
-            from django.db import connection
-            # Test database connection first
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-            
-            # If connection works, get available books
+            # Try to get available books
             queryset = Book.objects.all()
             return queryset.filter(copies_available__gt=0)
         except Exception as e:
             logger.error(f"Error fetching available books: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
-            return Book.objects.none()
+            # Return empty queryset to avoid crashing
+            try:
+                return Book.objects.none()
+            except:
+                # If even .none() fails, return empty list
+                return []
     
     def list(self, request, *args, **kwargs):
         """Override list to handle errors gracefully"""

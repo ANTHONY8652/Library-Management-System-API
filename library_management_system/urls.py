@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from django.conf import settings
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -59,72 +60,121 @@ health_check.permission_classes = [permissions.AllowAny]
 @api_view(['GET'])
 def db_health_check(request):
     """Database health check endpoint - tests PostgreSQL connection"""
+    import os
+    from django.db import connection
+    
+    # First, check environment variables
+    env_vars = {
+        'DB_NAME': os.getenv("DB_NAME", "NOT SET"),
+        'DB_USER': os.getenv("DB_USER", "NOT SET"),
+        'DB_PASSWORD': "***" if os.getenv("DB_PASSWORD") else "NOT SET",
+        'DB_HOST': os.getenv("DB_HOST", "NOT SET"),
+        'DB_PORT': os.getenv("DB_PORT", "NOT SET"),
+    }
+    
+    # Check if any are missing
+    missing_vars = [k for k, v in env_vars.items() if v == "NOT SET" and k != 'DB_PASSWORD']
+    if missing_vars:
+        return Response({
+            'status': 'error',
+            'message': 'Database environment variables not set',
+            'missing_variables': missing_vars,
+            'environment_variables': env_vars,
+            'suggestion': 'Go to Render dashboard → Your Service → Environment → Add the missing variables'
+        }, status=503)
+    
     try:
         # Test database connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             result = cursor.fetchone()
         
-        # Get database info
-        db_name = connection.settings_dict.get('NAME', 'unknown')
-        db_host = connection.settings_dict.get('HOST', 'unknown')
-        db_port = connection.settings_dict.get('PORT', 'unknown')
-        db_user = connection.settings_dict.get('USER', 'unknown')
+        # Get database info from connection
+        db_config = connection.settings_dict
+        db_name = db_config.get('NAME', 'unknown')
+        db_host = db_config.get('HOST', 'unknown')
+        db_port = db_config.get('PORT', 'unknown')
+        db_user = db_config.get('USER', 'unknown')
         
         # Check if tables exist (migrations have been run)
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public'
-                ORDER BY table_name
-            """)
-            tables = [row[0] for row in cursor.fetchall()]
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name
+                """)
+                tables = [row[0] for row in cursor.fetchall()]
+        except Exception as table_error:
+            tables = []
+            # Log the error but continue
+            import logging
+            logging.getLogger(__name__).error(f"Error checking tables: {str(table_error)}")
         
         # Check for key tables
         key_tables = ['library_api_book', 'library_api_userprofile', 'library_api_transaction']
-        missing_tables = [table for table in key_tables if table not in tables]
+        missing_tables = [table for table in key_tables if table not in tables] if tables else key_tables
         
-        return Response({
+        response_data = {
             'status': 'connected',
             'database': {
                 'name': db_name,
                 'host': db_host,
-                'port': db_port,
+                'port': str(db_port),
                 'user': db_user,
-                'connection': 'successful'
+                'connection': 'successful',
+                'environment_variables_set': True
             },
             'migrations': {
                 'applied': len(tables) > 0,
                 'total_tables': len(tables),
                 'key_tables_present': len(missing_tables) == 0,
                 'missing_tables': missing_tables if missing_tables else None,
-                'all_tables': tables[:10]  # Show first 10 tables
+                'all_tables': tables[:20] if tables else []  # Show first 20 tables
             }
-        }, status=200)
+        }
+        
+        if not tables:
+            response_data['migrations']['warning'] = 'No tables found. Run migrations: python manage.py migrate'
+        
+        return Response(response_data, status=200)
         
     except Exception as e:
         import traceback
         error_details = str(e)
         error_type = type(e).__name__
+        traceback_str = traceback.format_exc()
         
         # Get database config (without password) for debugging
-        db_config = connection.settings_dict
+        try:
+            db_config = connection.settings_dict
+            config_info = {
+                'name': db_config.get('NAME', 'unknown'),
+                'host': db_config.get('HOST', 'unknown'),
+                'port': str(db_config.get('PORT', 'unknown')),
+                'user': db_config.get('USER', 'unknown'),
+                'engine': db_config.get('ENGINE', 'unknown'),
+            }
+        except:
+            config_info = {'error': 'Could not read database config'}
+        
         return Response({
             'status': 'error',
             'database': {
                 'connection': 'failed',
                 'error_type': error_type,
                 'error': error_details,
-                'config': {
-                    'name': db_config.get('NAME', 'unknown'),
-                    'host': db_config.get('HOST', 'unknown'),
-                    'port': db_config.get('PORT', 'unknown'),
-                    'user': db_config.get('USER', 'unknown'),
-                    'engine': db_config.get('ENGINE', 'unknown'),
-                },
-                'suggestion': 'Check Render dashboard to ensure database environment variables are set correctly'
-            }
+                'config': config_info,
+                'environment_variables': env_vars,
+            },
+            'troubleshooting': {
+                'step1': 'Check Render dashboard → Your Service → Environment → Verify DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT are set',
+                'step2': 'Check Render dashboard → Databases → Verify library-db database exists and is running',
+                'step3': 'Check build logs to see if migrations ran successfully',
+                'step4': 'Verify database is in the same region as your service'
+            },
+            'traceback': traceback_str if settings.DEBUG else None
         }, status=503)
 db_health_check.permission_classes = [permissions.AllowAny]
 
