@@ -146,13 +146,25 @@ WSGI_APPLICATION = 'library_management_system.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("DB_NAME"),
-        'USER': os.getenv("DB_USER"),
-        'PASSWORD': os.getenv("DB_PASSWORD"),
-        'HOST': os.getenv("DB_HOST"),
-        'PORT': os.getenv("DB_PORT"),
+        'NAME': os.getenv("DB_NAME", ""),
+        'USER': os.getenv("DB_USER", ""),
+        'PASSWORD': os.getenv("DB_PASSWORD", ""),
+        'HOST': os.getenv("DB_HOST", "localhost"),
+        'PORT': os.getenv("DB_PORT", "5432"),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
 }
+
+# Validate database configuration in production
+if not DEBUG:
+    db_config = DATABASES['default']
+    if not db_config['NAME'] or not db_config['USER'] or not db_config['PASSWORD']:
+        raise ValueError(
+            "Database configuration is incomplete! "
+            "Please set DB_NAME, DB_USER, and DB_PASSWORD environment variables."
+        )
 
 
 # Password validation
@@ -182,9 +194,8 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
-USE_I18N = os.getenv("USE_I18N")
-
-USE_TZ = os.getenv("USE_TZ")
+USE_I18N = os.getenv("USE_I18N", "True").lower() in ("true", "1", "yes")
+USE_TZ = os.getenv("USE_TZ", "True").lower() in ("true", "1", "yes")
 
 
 # Static files (CSS, JavaScript, Images)

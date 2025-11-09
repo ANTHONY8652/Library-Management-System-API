@@ -22,23 +22,27 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-schema_view = get_schema_view(
-    openapi.Info(
-        title='Library Management API',
-        default_version = '1.0.0',
-        description =(
-            "This API provides comprehensive functionality for managing a library system, "
-            "enabling users to interact with a digital library platform. It supports user "
-            "authentication, book management, and user interactions, including borrowing and "
-            "returning books, managing user accounts, and tracking book availability."
+try:
+    schema_view = get_schema_view(
+        openapi.Info(
+            title='Library Management API',
+            default_version = '1.0.0',
+            description =(
+                "This API provides comprehensive functionality for managing a library system, "
+                "enabling users to interact with a digital library platform. It supports user "
+                "authentication, book management, and user interactions, including borrowing and "
+                "returning books, managing user accounts, and tracking book availability."
+            ),
+            terms_of_service="https://www.google.com/policies/terms/",
+            contact = openapi.Contact(email='githinjianthony720@gmail.com'),
+            license = openapi.License(name='BSD License'),
         ),
-        terms_of_service="https://www.google.com/policies/terms/",
-        contact = openapi.Contact(email='githinjianthony720@gmail.com'),
-        license = openapi.License(name='BSD License'),
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
-)
+        public=True,
+        permission_classes=(permissions.AllowAny,),
+    )
+except Exception as e:
+    # Fallback if schema generation fails
+    schema_view = None
 
 @api_view(['GET'])
 def health_check(request):
@@ -49,11 +53,31 @@ def health_check(request):
         'version': '1.0.0'
     })
 
+@api_view(['GET'])
+def root_view(request):
+    """Root endpoint with API information"""
+    return Response({
+        'message': 'Library Management System API',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/health/',
+            'api': '/api/',
+            'swagger': '/swagger/',
+            'redoc': '/redoc/',
+            'admin': '/admin/'
+        }
+    })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('library_api.urls')),
     path('health/', health_check, name='health-check'),
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-with-ui'),
-    path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('', root_view, name='root'),  # Simple root endpoint that doesn't depend on Swagger
 ]
+
+# Add Swagger/ReDoc URLs only if schema_view is available
+if schema_view:
+    urlpatterns += [
+        path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+        path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-with-ui'),
+    ]
