@@ -228,8 +228,8 @@ urlpatterns = [
     path('api/', include('library_api.urls')),
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
-    path('migrate/', run_migrations, name='run-migrations'),  # Secure migration endpoint
-    path('', root_view, name='root'),  # Simple root endpoint that doesn't depend on Swagger
+    path('migrate/', run_migrations, name='run-migrations'),
+    path('', root_view, name='root'),
 ]
 
 # Add Swagger/ReDoc URLs only if schema_view is available
