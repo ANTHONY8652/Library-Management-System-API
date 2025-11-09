@@ -15,9 +15,9 @@ urlpatterns = [
     path('login/', UserLoginView.as_view(), name='login'),
     path('logout/', UserLogoutView.as_view(), name='logout'),
     ##Token Views
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/token/verify/', MyTokenObtainPairView.as_view(), name='token-verify'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/verify/', MyTokenObtainPairView.as_view(), name='token-verify'),
     #profile_view
     path('profile/', profile_view, name='profile'),
     ##Home View
