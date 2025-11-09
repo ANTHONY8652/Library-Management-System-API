@@ -19,6 +19,8 @@ from django.urls import path, include
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -38,9 +40,20 @@ schema_view = get_schema_view(
     permission_classes=(permissions.AllowAny,),
 )
 
+@api_view(['GET'])
+def health_check(request):
+    """Simple health check endpoint"""
+    return Response({
+        'status': 'healthy',
+        'service': 'Library Management API',
+        'version': '1.0.0'
+    })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('library_api.urls')),
-    path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('health/', health_check, name='health-check'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-with-ui'),
+    path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]
