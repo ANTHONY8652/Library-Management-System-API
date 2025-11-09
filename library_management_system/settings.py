@@ -211,11 +211,15 @@ if static_dir.exists():
     STATICFILES_DIRS.append(static_dir)
 
 # WhiteNoise for static files in production
-if not DEBUG:
-    # Use Django's default storage, WhiteNoise middleware will serve the files
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-else:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+# WhiteNoise will automatically serve files from STATIC_ROOT
+# No special storage backend needed - WhiteNoise middleware handles it
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+# WhiteNoise configuration
+WHITENOISE_USE_FINDERS = True  # Allow WhiteNoise to find static files
+WHITENOISE_ROOT = STATIC_ROOT  # Root directory for static files
+WHITENOISE_AUTOREFRESH = False  # Don't auto-refresh in production
+WHITENOISE_MANIFEST_STRICT = False  # Don't fail if manifest is missing
 
 
 # Default primary key field type

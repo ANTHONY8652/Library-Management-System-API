@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.shortcuts import redirect
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -112,21 +113,19 @@ def db_health_check(request):
         }, status=503)
 db_health_check.permission_classes = [permissions.AllowAny]
 
-@api_view(['GET'])
 def root_view(request):
-    """Root endpoint with API information"""
-    return Response({
-        'message': 'Library Management System API',
-        'version': '1.0.0',
-        'endpoints': {
-            'health': '/health/',
-            'api': '/api/',
-            'swagger': '/swagger/',
-            'redoc': '/redoc/',
-            'admin': '/admin/'
-        }
-    })
-root_view.permission_classes = [permissions.AllowAny]
+    """Root endpoint - redirects to Swagger UI"""
+    if schema_view:
+        return redirect('/swagger/')
+    else:
+        # Fallback if Swagger is not available
+        from rest_framework.response import Response
+        return Response({
+            'message': 'Library Management System API',
+            'version': '1.0.0',
+            'documentation': '/swagger/',
+            'api': '/api/'
+        })
 
 urlpatterns = [
     path('admin/', admin.site.urls),
