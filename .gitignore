@@ -1,26 +1,20 @@
+# ============================================
 # Python
-*.py[cod]
-*$py.class
-*.so
-.Python
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 *.egg
 *.egg-info/
+.eggs/
 dist/
 build/
-*.log
-*.env
-.env.local
-.env.*.local
-*.db
-*.db
-*.sqlite
-*.sqlite3
+*.egg-info
 
+# ============================================
 # Django
+# ============================================
 *.log
 db.sqlite3
 db.sqlite3-journal
@@ -29,40 +23,182 @@ db.sqlite3-journal
 *.pot
 *.pyc
 local_settings.py
+*.mo
+*.po
 
-# Environment variables
+# Django migrations (uncomment if you don't want to track migrations)
+# */migrations/*.py
+# */migrations/*.pyc
+# !*/migrations/__init__.py
+
+# ============================================
+# Environment Variables & Secrets
+# ============================================
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*.local
 *.env
+.envrc
 
-# IDE
+# Secrets and keys
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets/
+.secrets/
+*.secret
+
+# ============================================
+# Node.js / React / Vite / Frontend
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm
+.eslintcache
+.parcel-cache
+.cache/
+.vite/
+dist/
+dist-ssr/
+build/
+*.local
+
+# Frontend specific
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/node_modules/
+
+# ============================================
+# Logs
+# ============================================
+*.log
+library_*.log
+django_*.log
+error.log
+access.log
+*.log.*
+
+# ============================================
+# Database
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# ============================================
+# IDE / Editors
+# ============================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# ============================================
+# OS Files
+# ============================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.npm
-.eslintcache
-.parcel-cache
+# ============================================
+# Testing & Coverage
+# ============================================
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# Build outputs
-dist/
-build/
+# ============================================
+# Build & Package Files
+# ============================================
 *.tgz
 *.tar.gz
+*.zip
+*.rar
+*.whl
 
-# Sensitive documentation files (contain implementation details, bugs, security info)
+# ============================================
+# Temporary & Backup Files
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ============================================
+# Development Tools
+# ============================================
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Pyre type checker
+.pyre/
+
+# TypeScript
+*.tsbuildinfo
+
+# ============================================
+# Deployment Platforms
+# ============================================
+.vercel/
+.netlify/
+.railway/
+.render/
+
+# ============================================
+# Sensitive Documentation Files
+# (contain implementation details, bugs, security info)
+# ============================================
 BACKEND_ORIGINAL_STATE.md
 TRANSACTION_BUGS_ANALYSIS.md
 TRANSACTION_FIXES_SUMMARY.md
@@ -70,30 +206,19 @@ ENDPOINT_AUDIT.md
 PRODUCTION_FEATURES_SUMMARY.md
 MISSING_FEATURES.md
 frontend/FRONTEND_REVIEW.md
+ALLOWED_HOSTS_DEPLOYMENT_CHEATSHEET.md
+HIRING_ASSESSMENT.md
+TRANSACTION_FIXES_SUMMARY.md
+TRANSACTION_BUGS_ANALYSIS.md
+SUPABASE_SETTINGS_IPDATE.md
+SECURITY_CHECKLIST.md
 
-# Logs
-*.log
-library_*.log
-django_*.log
-error.log
-access.log
+# ============================================
+# Project Specific
+# ============================================
+# Windows batch files (optional - uncomment if you don't want to track them)
+# *.bat
+# *.ps1
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Secrets and keys
-*.key
-*.pem
-*.p12
-*.pfx
-secrets/
-.secrets/
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-*~
+# Runtime files (keep runtime.txt for deployment, but ignore if you prefer)
+# runtime.txt
