@@ -1,7 +1,11 @@
 import axios from 'axios'
 
-// Use environment variable for production, fallback to localhost for development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+// Backend API URL - Production: Render backend, Development: localhost
+const BACKEND_URL = 'https://library-management-system-api-of7r.onrender.com'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.PROD 
+    ? `${BACKEND_URL}/api` 
+    : 'http://localhost:8000/api')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -36,7 +40,7 @@ api.interceptors.response.use(
       try {
         const refresh = localStorage.getItem('refresh_token')
         if (refresh) {
-          const response = await axios.post(`${API_BASE_URL}/api/token/refresh/`, {
+          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
             refresh: refresh,
           })
           const { access } = response.data

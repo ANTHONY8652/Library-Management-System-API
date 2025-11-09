@@ -307,12 +307,17 @@ if cors_origins_env:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
 else:
     # Default to localhost for development
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",  # Vite default port
-        "http://127.0.0.1:5173",
-    ]
+    if DEBUG:
+        CORS_ALLOWED_ORIGINS = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",  # Vite default port
+            "http://127.0.0.1:5173",
+        ]
+    else:
+        # In production, allow all origins (you can restrict this later with CORS_ALLOWED_ORIGINS)
+        # This allows Vercel and any other frontend deployment
+        CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
