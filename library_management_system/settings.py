@@ -154,17 +154,31 @@ DATABASES = {
         'OPTIONS': {
             'connect_timeout': 10,
         },
+        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
     }
 }
 
 # Validate database configuration in production
 if not DEBUG:
     db_config = DATABASES['default']
-    if not db_config['NAME'] or not db_config['USER'] or not db_config['PASSWORD']:
+    missing_vars = []
+    if not db_config['NAME']:
+        missing_vars.append('DB_NAME')
+    if not db_config['USER']:
+        missing_vars.append('DB_USER')
+    if not db_config['PASSWORD']:
+        missing_vars.append('DB_PASSWORD')
+    
+    if missing_vars:
         raise ValueError(
-            "Database configuration is incomplete! "
-            "Please set DB_NAME, DB_USER, and DB_PASSWORD environment variables."
+            f"Database configuration is incomplete! Missing: {', '.join(missing_vars)}. "
+            "Please set these environment variables in Render dashboard."
         )
+    
+    # Log database connection info (without password) for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Database configured: {db_config['NAME']}@{db_config['HOST']}:{db_config['PORT']} (user: {db_config['USER']})")
 
 
 # Password validation

@@ -36,9 +36,17 @@ class MyCursorPagination(CursorPagination):
 class BookListCreateView(generics.ListCreateAPIView):
     queryset = Book.objects.all().order_by('title', 'author')
     serializer_class = BookSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, CanViewBook]
+    permission_classes = [permissions.AllowAny]  # Allow anyone to view, can restrict create later
     pagination_class = StandardResultsSetPagination
     ordering_fields = ['title', 'published_date']
+    
+    def get_queryset(self):
+        """Override to handle potential database errors"""
+        try:
+            return Book.objects.all().order_by('title', 'author')
+        except Exception as e:
+            logger.error(f"Error fetching books: {str(e)}")
+            return Book.objects.none()
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
@@ -215,31 +223,44 @@ class OverdueBooksView(generics.ListAPIView):
         return Transaction.objects.filter(return_date__isnull=True, due_date__lt=timezone.now().date(), user=self.request.user)
 
 class BookFilter(filters.FilterSet):
-    title = filters.CharFilter(field_name='title',lookup_expr='icontains')
-    author = filters.CharFilter(field_name='author',lookup_expr='icontains')
-    isbn = filters.CharFilter(field_name='isbn',lookup_expr='icontains')
+    title = filters.CharFilter(field_name='title', lookup_expr='icontains')
+    author = filters.CharFilter(field_name='author', lookup_expr='icontains')
+    isbn = filters.CharFilter(field_name='isbn', lookup_expr='icontains')
     available = filters.BooleanFilter(field_name='copies_available', lookup_expr='gt', method='filter_available')
     published_after = filters.DateFilter(field_name='published_date', lookup_expr='gte')
     published_before = filters.DateFilter(field_name='published_date', lookup_expr='lte')
     year_published = filters.NumberFilter(field_name='published_date', lookup_expr='year')
 
     def filter_available(self, queryset, name, value):
-        return queryset.filter(copies_available__gt=0)
+        """Filter books by availability"""
+        try:
+            if value:
+                return queryset.filter(copies_available__gt=0)
+            return queryset
+        except Exception as e:
+            logger.error(f"Error in filter_available: {str(e)}")
+            return queryset
 
     class Meta:
         model = Book
-        fields = ['title', 'author','isbn', 'available', 'published_after', 'published_before', 'year_published']
+        fields = ['title', 'author', 'isbn', 'available', 'published_after', 'published_before', 'year_published']
 
 class AvailableBooksView(generics.ListAPIView):
     serializer_class = BookSerializer
     queryset = Book.objects.all()
+    permission_classes = [permissions.AllowAny]  # Allow anyone to view available books
     pagination_class = StandardResultsSetPagination
     filter_backends = (filters.DjangoFilterBackend,)
     filterset_class = BookFilter
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset.filter(copies_available__gt=0)
+        """Get available books with error handling"""
+        try:
+            queryset = super().get_queryset()
+            return queryset.filter(copies_available__gt=0)
+        except Exception as e:
+            logger.error(f"Error fetching available books: {str(e)}")
+            return Book.objects.none()
 
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer

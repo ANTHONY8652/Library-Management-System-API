@@ -104,11 +104,26 @@ def db_health_check(request):
         }, status=200)
         
     except Exception as e:
+        import traceback
+        error_details = str(e)
+        error_type = type(e).__name__
+        
+        # Get database config (without password) for debugging
+        db_config = connection.settings_dict
         return Response({
             'status': 'error',
             'database': {
                 'connection': 'failed',
-                'error': str(e)
+                'error_type': error_type,
+                'error': error_details,
+                'config': {
+                    'name': db_config.get('NAME', 'unknown'),
+                    'host': db_config.get('HOST', 'unknown'),
+                    'port': db_config.get('PORT', 'unknown'),
+                    'user': db_config.get('USER', 'unknown'),
+                    'engine': db_config.get('ENGINE', 'unknown'),
+                },
+                'suggestion': 'Check Render dashboard to ensure database environment variables are set correctly'
             }
         }, status=503)
 db_health_check.permission_classes = [permissions.AllowAny]
