@@ -10,8 +10,8 @@ drf-yasg==1.21.7
 # Authentication
 djangorestframework-simplejwt==5.2.2
 
-# Database
-psycopg2-binary==2.9.6
+# Database (using psycopg3 for Python 3.13 compatibility)
+psycopg[binary]>=3.1.0
 
 # Filtering
 django-filter==23.2
