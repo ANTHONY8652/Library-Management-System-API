@@ -17,6 +17,21 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Pagination classes
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class CustomPagination(PageNumberPagination):
+    def get_paginated_response(self, data):
+        return Response({
+        })
+
+class MyCursorPagination(CursorPagination):
+    page_size = 10
+    ordering = 'published_date'
+
 ##Book CRUD operations
 class BookListCreateView(generics.ListCreateAPIView):
     queryset = Book.objects.all().order_by('title', 'author')
@@ -214,20 +229,6 @@ class BookFilter(filters.FilterSet):
     class Meta:
         model = Book
         fields = ['title', 'author','isbn', 'available', 'published_after', 'published_before', 'year_published']
-
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-class CustomPagination(PageNumberPagination):
-    def get_paginated_response(self, data):
-        return Response({
-        })
-
-class MyCursorPagination(CursorPagination):
-    page_size = 10
-    ordering = 'published_date'
 
 class AvailableBooksView(generics.ListAPIView):
     serializer_class = BookSerializer

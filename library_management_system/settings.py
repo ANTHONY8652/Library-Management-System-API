@@ -31,12 +31,28 @@ if not SECRET_KEY:
     raise ValueError("DJANGO_SECRET_KEY environment variable is required!")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+# Default to True for local development, set to False explicitly in production
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 # Security: Configure ALLOWED_HOSTS for production
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+ALLOWED_HOSTS = []
+allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
+
+# Always add localhost and 127.0.0.1 in DEBUG mode
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
+
+# Remove duplicates while preserving order
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
+
+# Safety check: In production (DEBUG=False), ALLOWED_HOSTS must be set
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ValueError(
+        "ALLOWED_HOSTS environment variable must be set in production! "
+        "Set it to your domain(s), e.g., 'yourdomain.com,www.yourdomain.com'"
+    )
 
 
 # Application definition
@@ -209,10 +225,18 @@ LOGGING = {
 }
 
 # CORS settings for frontend
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Allow CORS origins from environment variable, or default to localhost for development
+cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if cors_origins_env:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    # Default to localhost for development
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",  # Vite default port
+        "http://127.0.0.1:5173",
+    ]
 
 CORS_ALLOW_CREDENTIALS = True
 

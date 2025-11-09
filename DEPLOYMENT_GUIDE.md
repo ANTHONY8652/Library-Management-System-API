@@ -2,6 +2,32 @@
 
 This guide will help you deploy your Library Management System to production. I'll provide multiple options, from easiest to most flexible.
 
+## ⚡ Quick Deploy (30 Minutes)
+
+**Fastest way to get live:**
+
+1. **Backend to Render** (15 min)
+   - Create account at https://render.com
+   - New PostgreSQL database
+   - New Web Service (Django)
+   - Add environment variables
+   - Deploy!
+
+2. **Frontend to Vercel** (10 min)
+   - Create account at https://vercel.com
+   - Import GitHub repo
+   - Set `VITE_API_URL` environment variable
+   - Deploy!
+
+3. **Test** (5 min)
+   - Visit your URLs
+   - Test registration/login
+   - Verify everything works
+
+**See `QUICK_DEPLOY.md` for detailed step-by-step instructions.**
+
+---
+
 ## 🎯 Recommended Deployment Strategy
 
 **Best Option for Beginners:**
@@ -13,6 +39,7 @@ This guide will help you deploy your Library Management System to production. I'
 - Railway (hosts everything together)
 - Heroku (paid, but very reliable)
 - DigitalOcean (more control)
+- Supabase + Hostinger Domain (see `SUPABASE_HOSTINGER_GUIDE.md`)
 
 ---
 
