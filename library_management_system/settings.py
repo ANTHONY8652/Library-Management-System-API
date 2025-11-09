@@ -211,14 +211,9 @@ if static_dir.exists():
     STATICFILES_DIRS.append(static_dir)
 
 # WhiteNoise for static files in production
-# Use CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
-# to avoid issues if manifest file is missing
 if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-    # WhiteNoise configuration for production
-    WHITENOISE_USE_FINDERS = False  # Don't use finders in production, use collected files
-    WHITENOISE_AUTOREFRESH = False  # Don't auto-refresh in production
-    WHITENOISE_ROOT = STATIC_ROOT  # Root directory for static files
+    # Use Django's default storage, WhiteNoise middleware will serve the files
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 else:
     STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
@@ -240,7 +235,7 @@ REST_FRAMEWORK = {
     ),
     
     'DEFAULT_PERMISSION_CLASSES': ( 
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',  # Changed to AllowAny - individual views can override
     ),
 } 
 

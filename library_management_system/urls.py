@@ -53,6 +53,7 @@ def health_check(request):
         'service': 'Library Management API',
         'version': '1.0.0'
     })
+health_check.permission_classes = [permissions.AllowAny]
 
 @api_view(['GET'])
 def db_health_check(request):
@@ -109,6 +110,7 @@ def db_health_check(request):
                 'error': str(e)
             }
         }, status=503)
+db_health_check.permission_classes = [permissions.AllowAny]
 
 @api_view(['GET'])
 def root_view(request):
@@ -124,6 +126,7 @@ def root_view(request):
             'admin': '/admin/'
         }
     })
+root_view.permission_classes = [permissions.AllowAny]
 
 urlpatterns = [
     path('admin/', admin.site.urls),
