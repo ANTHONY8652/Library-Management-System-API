@@ -44,14 +44,48 @@ if allowed_hosts_env:
 if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
+# Auto-detect Render deployment and add Render hostname
+if os.getenv("RENDER"):
+    # Render sets RENDER=true and provides environment variables
+    render_external_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    render_service_name = os.getenv("RENDER_SERVICE_NAME", "")
+    
+    if render_external_url:
+        # Extract hostname from URL (e.g., https://library-backend-xxxx.onrender.com -> library-backend-xxxx.onrender.com)
+        from urllib.parse import urlparse
+        parsed = urlparse(render_external_url)
+        if parsed.hostname:
+            ALLOWED_HOSTS.append(parsed.hostname)
+            # Also add without port if it was included
+            if ':' in parsed.hostname:
+                ALLOWED_HOSTS.append(parsed.hostname.split(':')[0])
+    
+    # If we still don't have a hostname, try to construct it from service name
+    # Note: Render URLs are typically {service-name}-{random-id}.onrender.com
+    # So we can't predict the exact URL, but we'll add a placeholder
+    if not ALLOWED_HOSTS and render_service_name:
+        # Try the service name pattern (might not match exactly, but helps with initial deployment)
+        potential_host = f"{render_service_name}.onrender.com"
+        ALLOWED_HOSTS.append(potential_host)
+        import warnings
+        warnings.warn(
+            f"Could not auto-detect Render hostname. Using {potential_host} as fallback. "
+            "Please set ALLOWED_HOSTS environment variable in Render dashboard with your actual service URL "
+            "(found in your Render service settings).",
+            UserWarning
+        )
+
 # Remove duplicates while preserving order
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 # Safety check: In production (DEBUG=False), ALLOWED_HOSTS must be set
+# But allow Render deployments to proceed with auto-detected hosts
 if not DEBUG and not ALLOWED_HOSTS:
     raise ValueError(
         "ALLOWED_HOSTS environment variable must be set in production! "
-        "Set it to your domain(s), e.g., 'yourdomain.com,www.yourdomain.com'"
+        "Set it to your domain(s), e.g., 'yourdomain.com,www.yourdomain.com'. "
+        "If deploying on Render, the hostname should be automatically detected, "
+        "but you can also set it explicitly in the Render dashboard."
     )
 
 
