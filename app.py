@@ -7,6 +7,9 @@ import os
 # Set the Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'library_management_system.settings')
 
+# Migrations are handled in buildCommand in render.yaml
+# This file just exposes the WSGI app
+
 # Import the WSGI application
 from library_management_system.wsgi import application
 

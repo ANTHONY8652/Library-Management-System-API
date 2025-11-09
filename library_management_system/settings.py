@@ -45,9 +45,9 @@ if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
 # Auto-detect Render deployment and add Render hostname
-if os.getenv("RENDER"):
+render_external_url = os.getenv("RENDER_EXTERNAL_URL", "")
+if os.getenv("RENDER") or render_external_url:
     # Render sets RENDER=true and provides environment variables
-    render_external_url = os.getenv("RENDER_EXTERNAL_URL", "")
     render_service_name = os.getenv("RENDER_SERVICE_NAME", "")
     
     if render_external_url:
@@ -60,9 +60,12 @@ if os.getenv("RENDER"):
             if ':' in parsed.hostname:
                 ALLOWED_HOSTS.append(parsed.hostname.split(':')[0])
     
+    # Fallback: add known Render URL
+    if not ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('library-management-system-api-of7r.onrender.com')
+    
     # If we still don't have a hostname, try to construct it from service name
     # Note: Render URLs are typically {service-name}-{random-id}.onrender.com
-    # So we can't predict the exact URL, but we'll add a placeholder
     if not ALLOWED_HOSTS and render_service_name:
         # Try the service name pattern (might not match exactly, but helps with initial deployment)
         potential_host = f"{render_service_name}.onrender.com"

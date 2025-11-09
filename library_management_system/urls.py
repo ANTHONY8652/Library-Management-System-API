@@ -178,33 +178,26 @@ def db_health_check(request):
         }, status=503)
 db_health_check.permission_classes = [permissions.AllowAny]
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 def run_migrations(request):
-    """Run database migrations - SECURE: requires secret key"""
-    import os
+    """Run database migrations"""
     from django.core.management import call_command
     from io import StringIO
-    
-    # Security: Require a secret key in the request
-    provided_key = request.data.get('secret_key') or request.query_params.get('secret_key')
-    expected_key = os.getenv('DJANGO_SECRET_KEY')
-    
-    if not provided_key or provided_key != expected_key:
-        return Response({
-            'error': 'Unauthorized',
-            'message': 'Secret key required to run migrations'
-        }, status=401)
+    import sys
     
     try:
         # Capture migration output
         out = StringIO()
-        call_command('migrate', '--noinput', stdout=out, stderr=out)
+        err = StringIO()
+        call_command('migrate', '--noinput', verbosity=2, stdout=out, stderr=err)
         output = out.getvalue()
+        errors = err.getvalue()
         
         return Response({
             'status': 'success',
-            'message': 'Migrations completed successfully',
-            'output': output
+            'message': 'Migrations completed',
+            'output': output,
+            'errors': errors if errors else None
         }, status=200)
     except Exception as e:
         import traceback
@@ -212,7 +205,7 @@ def run_migrations(request):
             'status': 'error',
             'message': 'Migration failed',
             'error': str(e),
-            'traceback': traceback.format_exc() if settings.DEBUG else None
+            'traceback': traceback.format_exc()
         }, status=500)
 run_migrations.permission_classes = [permissions.AllowAny]
 
