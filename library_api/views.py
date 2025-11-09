@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.pagination import PageNumberPagination, CursorPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,6 @@ class MyCursorPagination(CursorPagination):
 
 ##Book CRUD operations
 class BookListCreateView(generics.ListCreateAPIView):
-    queryset = Book.objects.all().order_by('title', 'author')
     serializer_class = BookSerializer
     permission_classes = [permissions.AllowAny]  # Allow anyone to view, can restrict create later
     pagination_class = StandardResultsSetPagination
@@ -43,10 +43,32 @@ class BookListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         """Override to handle potential database errors"""
         try:
+            from django.db import connection
+            # Test database connection first
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            
+            # If connection works, get books
             return Book.objects.all().order_by('title', 'author')
         except Exception as e:
             logger.error(f"Error fetching books: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Book.objects.none()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle errors gracefully"""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in BookListCreateView.list: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response({
+                'error': 'Internal server error',
+                'message': 'Unable to fetch books. Please check database connection.',
+                'details': str(e) if settings.DEBUG else None
+            }, status=500)
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Book.objects.all()
@@ -247,7 +269,6 @@ class BookFilter(filters.FilterSet):
 
 class AvailableBooksView(generics.ListAPIView):
     serializer_class = BookSerializer
-    queryset = Book.objects.all()
     permission_classes = [permissions.AllowAny]  # Allow anyone to view available books
     pagination_class = StandardResultsSetPagination
     filter_backends = (filters.DjangoFilterBackend,)
@@ -256,11 +277,33 @@ class AvailableBooksView(generics.ListAPIView):
     def get_queryset(self):
         """Get available books with error handling"""
         try:
-            queryset = super().get_queryset()
+            from django.db import connection
+            # Test database connection first
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            
+            # If connection works, get available books
+            queryset = Book.objects.all()
             return queryset.filter(copies_available__gt=0)
         except Exception as e:
             logger.error(f"Error fetching available books: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Book.objects.none()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle errors gracefully"""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in AvailableBooksView.list: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response({
+                'error': 'Internal server error',
+                'message': 'Unable to fetch available books. Please check database connection.',
+                'details': str(e) if settings.DEBUG else None
+            }, status=500)
 
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer
