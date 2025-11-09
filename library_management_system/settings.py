@@ -201,14 +201,24 @@ USE_TZ = os.getenv("USE_TZ", "True").lower() in ("true", "1", "yes")
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Additional directories for static files (only if they exist)
+STATICFILES_DIRS = []
+static_dir = BASE_DIR / 'static'
+if static_dir.exists():
+    STATICFILES_DIRS.append(static_dir)
 
 # WhiteNoise for static files in production
 # Use CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
 # to avoid issues if manifest file is missing
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    # WhiteNoise configuration for production
+    WHITENOISE_USE_FINDERS = False  # Don't use finders in production, use collected files
+    WHITENOISE_AUTOREFRESH = False  # Don't auto-refresh in production
+    WHITENOISE_ROOT = STATIC_ROOT  # Root directory for static files
 else:
     STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 

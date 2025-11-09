@@ -21,6 +21,7 @@ from drf_yasg import openapi
 from rest_framework import permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.db import connection
 
 try:
     schema_view = get_schema_view(
@@ -54,6 +55,62 @@ def health_check(request):
     })
 
 @api_view(['GET'])
+def db_health_check(request):
+    """Database health check endpoint - tests PostgreSQL connection"""
+    try:
+        # Test database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+        
+        # Get database info
+        db_name = connection.settings_dict.get('NAME', 'unknown')
+        db_host = connection.settings_dict.get('HOST', 'unknown')
+        db_port = connection.settings_dict.get('PORT', 'unknown')
+        db_user = connection.settings_dict.get('USER', 'unknown')
+        
+        # Check if tables exist (migrations have been run)
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+        
+        # Check for key tables
+        key_tables = ['library_api_book', 'library_api_userprofile', 'library_api_transaction']
+        missing_tables = [table for table in key_tables if table not in tables]
+        
+        return Response({
+            'status': 'connected',
+            'database': {
+                'name': db_name,
+                'host': db_host,
+                'port': db_port,
+                'user': db_user,
+                'connection': 'successful'
+            },
+            'migrations': {
+                'applied': len(tables) > 0,
+                'total_tables': len(tables),
+                'key_tables_present': len(missing_tables) == 0,
+                'missing_tables': missing_tables if missing_tables else None,
+                'all_tables': tables[:10]  # Show first 10 tables
+            }
+        }, status=200)
+        
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'database': {
+                'connection': 'failed',
+                'error': str(e)
+            }
+        }, status=503)
+
+@api_view(['GET'])
 def root_view(request):
     """Root endpoint with API information"""
     return Response({
@@ -72,6 +129,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('library_api.urls')),
     path('health/', health_check, name='health-check'),
+    path('health/db/', db_health_check, name='db-health-check'),
     path('', root_view, name='root'),  # Simple root endpoint that doesn't depend on Swagger
 ]
 
