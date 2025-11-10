@@ -376,17 +376,50 @@ class PasswordResetRequestView(generics.GenericAPIView):
             except serializers.ValidationError as e:
                 # This is raised from the serializer with detailed error
                 logger.error(f'Password reset validation error: {str(e)}')
+                logger.error(f'ValidationError type: {type(e)}')
+                logger.error(f'ValidationError has detail: {hasattr(e, "detail")}')
+                
                 # Extract error message from ValidationError
-                if hasattr(e, 'detail'):
-                    if isinstance(e.detail, dict):
-                        # Get first error message from dict
-                        error_message = list(e.detail.values())[0]
-                        if isinstance(error_message, list):
-                            error_message = error_message[0]
+                error_message = 'Error sending password reset email. Please try again.'
+                
+                try:
+                    if hasattr(e, 'detail'):
+                        if isinstance(e.detail, dict):
+                            # Check for 'email' key first (from serializer)
+                            if 'email' in e.detail:
+                                email_errors = e.detail['email']
+                                if isinstance(email_errors, list) and email_errors:
+                                    error_message = email_errors[0]
+                                elif isinstance(email_errors, str):
+                                    error_message = email_errors
+                            else:
+                                # Get first error message from dict
+                                first_key = list(e.detail.keys())[0]
+                                first_value = e.detail[first_key]
+                                if isinstance(first_value, list):
+                                    error_message = first_value[0] if first_value else str(e.detail)
+                                else:
+                                    error_message = str(first_value)
+                        elif isinstance(e.detail, list):
+                            error_message = e.detail[0] if e.detail else str(e)
+                        else:
+                            error_message = str(e.detail)
                     else:
-                        error_message = str(e.detail)
-                else:
-                    error_message = str(e)
+                        # If no detail attribute, use string representation
+                        error_message = str(e)
+                        # Clean up ErrorDetail format if present
+                        if 'ErrorDetail' in error_message:
+                            import re
+                            error_message = re.sub(r"ErrorDetail\(string='([^']+)'.*\)", r'\1', error_message)
+                            error_message = error_message.strip("[]'\"")
+                except Exception as extract_error:
+                    logger.error(f'Error extracting ValidationError message: {str(extract_error)}')
+                    error_message = str(e) if str(e) else 'Error sending password reset email. Please try again.'
+                    # Clean up error message
+                    if 'ErrorDetail' in error_message:
+                        import re
+                        error_message = re.sub(r"ErrorDetail\(string='([^']+)'.*\)", r'\1', error_message)
+                        error_message = error_message.strip("[]'\"")
                 
                 logger.error(f'Returning error to client: {error_message}')
                 return Response({

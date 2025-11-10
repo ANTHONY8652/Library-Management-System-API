@@ -223,11 +223,11 @@ Library Management System Team
         # Validate email configuration
         if not from_email:
             logger.error('DEFAULT_FROM_EMAIL is not set in settings')
-            raise serializers.ValidationError('Email configuration error: DEFAULT_FROM_EMAIL is not set.')
+            raise serializers.ValidationError({'email': ['Email configuration error: DEFAULT_FROM_EMAIL is not set.']})
         
         if 'smtp' in email_backend.lower() and not email_host_user:
             logger.error('SMTP backend requires EMAIL_HOST_USER to be set')
-            raise serializers.ValidationError('Email configuration error: EMAIL_HOST_USER is required for SMTP.')
+            raise serializers.ValidationError({'email': ['Email configuration error: EMAIL_HOST_USER is required for SMTP.']})
         
         # Log email details for debugging
         logger.info(f'Attempting to send password reset email to {email} using backend: {email_backend}')
@@ -250,23 +250,43 @@ Library Management System Team
             # Log detailed error for debugging
             import traceback
             error_msg = str(e)
-            logger.error(f'Error sending password reset email to {email}: {error_msg}')
+            error_type = type(e).__name__
+            
+            logger.error(f'Error sending password reset email to {email}')
+            logger.error(f'Error type: {error_type}')
+            logger.error(f'Error message: {error_msg}')
             logger.error(f'Traceback: {traceback.format_exc()}')
             logger.error(f'Email backend: {email_backend}')
             logger.error(f'From email: {from_email}')
             logger.error(f'EMAIL_HOST_USER set: {bool(email_host_user)}')
+            logger.error(f'EMAIL_HOST: {getattr(settings, "EMAIL_HOST", "NOT SET")}')
+            logger.error(f'EMAIL_PORT: {getattr(settings, "EMAIL_PORT", "NOT SET")}')
             
-            # Provide helpful error message
-            if 'authentication failed' in error_msg.lower() or 'invalid credentials' in error_msg.lower():
-                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD.'
-            elif 'connection' in error_msg.lower() or 'timeout' in error_msg.lower():
-                error_message = 'Unable to connect to email server. Please check EMAIL_HOST and EMAIL_PORT.'
+            # Provide helpful error message based on error type
+            error_lower = error_msg.lower()
+            
+            if '535' in error_msg or 'authentication failed' in error_lower or 'invalid credentials' in error_lower:
+                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
+            elif '550' in error_msg or 'relay' in error_lower:
+                error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
+            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower:
+                error_message = f'Unable to connect to email server at {getattr(settings, "EMAIL_HOST", "unknown")}:{getattr(settings, "EMAIL_PORT", "unknown")}. Check EMAIL_HOST and EMAIL_PORT.'
+            elif 'ssl' in error_lower or 'tls' in error_lower:
+                error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings.'
+            elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
+                error_message = f'SMTP error: {error_msg}. Check your email server settings.'
             elif settings.DEBUG:
                 error_message = f'Error sending email: {error_msg}. Check server logs for details.'
             else:
-                error_message = 'Error sending email. Please try again later.'
+                error_message = 'Error sending email. Please check your email configuration and try again later.'
             
-            raise serializers.ValidationError(error_message)
+            # In debug mode, include more details
+            if settings.DEBUG:
+                error_message += f' (Error type: {error_type})'
+            
+            # Raise ValidationError with the error message
+            # Use a dict format to ensure proper serialization
+            raise serializers.ValidationError({'email': [error_message]})
         
         # Return success with email_exists flag
         return {'email_exists': True, 'user': user}
