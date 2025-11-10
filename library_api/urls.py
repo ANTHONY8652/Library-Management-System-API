@@ -1,9 +1,8 @@
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views
 from .views import  (
-    home, profile_view, OverdueBooksView, MyBooksView, TransactionHistoryView, CurrentUserProfileView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView
+    home, profile_view, OverdueBooksView, MyBooksView, TransactionHistoryView, CurrentUserProfileView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView, PasswordResetRequestView, PasswordResetConfirmView
  )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -19,8 +18,8 @@ urlpatterns = [
     path('home/', home, name='home'),
     path('books/', BookListCreateView.as_view(), name='book-list-create'),
     path('books/<int:pk>/', BookDetailView.as_view(), name='book-detail'),
-    path('password_reset/', auth_views.PasswordResetView.as_view(), name='password-reset'),
-    path('password_reset_done/', auth_views.PasswordResetDoneView.as_view, name='password-reset-done'),
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('users/', UserProfileListCreateView.as_view(), name='user-list-create'),
     path('users/<int:pk>/', UserProfileDetailView.as_view(), name='user-detail'),
     path('checkout/', CheckOutBookView.as_view(), name='checkout-book'),

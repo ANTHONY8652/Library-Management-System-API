@@ -4,6 +4,11 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
 
 
 class BookSerializer(serializers.ModelSerializer):
@@ -152,3 +157,113 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['is_admin'] = user.is_admin
 
         return token
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
+            # Don't reveal if email exists for security
+            pass
+        return value
+
+    def save(self):
+        email = self.validated_data['email']
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Return success even if user doesn't exist for security
+            return None
+        
+        # Generate token
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Create reset URL (frontend URL)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        # Remove trailing slash from frontend_url if present, then add the reset path
+        frontend_url = frontend_url.rstrip('/')
+        reset_url = f"{frontend_url}/reset-password/{uid}/{token}"
+        
+        # Send email
+        subject = 'Password Reset Request - Library Management System'
+        message = f'''
+Hello {user.username},
+
+You requested a password reset for your account. Please click the link below to reset your password:
+
+{reset_url}
+
+If you did not request this password reset, please ignore this email.
+
+This link will expire in 24 hours.
+
+Best regards,
+Library Management System Team
+'''
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@library.com')
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                from_email,
+                [email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log error but don't expose it to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error sending password reset email: {str(e)}')
+            raise serializers.ValidationError('Error sending email. Please try again later.')
+        
+        return user
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+        min_length=8
+    )
+    new_password_confirm = serializers.CharField(
+        required=True,
+        write_only=True,
+        style={'input_type': 'password'},
+        min_length=8
+    )
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match'})
+        return attrs
+
+    def validate_uid(self, value):
+        try:
+            uid = force_str(urlsafe_base64_decode(value))
+            user = User.objects.get(pk=uid)
+            self.user = user
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError('Invalid reset link')
+        return value
+
+    def validate_token(self, value):
+        if not hasattr(self, 'user'):
+            return value
+        
+        if not default_token_generator.check_token(self.user, value):
+            raise serializers.ValidationError('Invalid or expired reset link')
+        return value
+
+    def save(self):
+        user = self.user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user

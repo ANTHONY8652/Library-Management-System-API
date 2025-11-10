@@ -2,7 +2,7 @@ from rest_framework import filters, permissions, generics, serializers, status
 from rest_framework.views import APIView
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
-from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer
+from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember
 from django.shortcuts import render
 from rest_framework.reverse import reverse
@@ -338,3 +338,50 @@ def checkout_book_view(request, book_id):
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
+
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    serializer_class = PasswordResetRequestSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                # Always return success message for security (don't reveal if email exists)
+                return Response({
+                    'message': 'If an account with this email exists, a password reset link has been sent.',
+                    'success': True
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                # Log the error but return generic message
+                logger.error(f'Password reset error: {str(e)}')
+                return Response({
+                    'error': 'Error sending password reset email. Please try again later.',
+                    'success': False
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    serializer_class = PasswordResetConfirmSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                user = serializer.save()
+                logger.info(f'Password reset successful for user: {user.username}')
+                return Response({
+                    'message': 'Password has been reset successfully. You can now login with your new password.',
+                    'success': True
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f'Password reset confirm error: {str(e)}')
+                return Response({
+                    'error': 'Error resetting password. Please try again.',
+                    'success': False
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

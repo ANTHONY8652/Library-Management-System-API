@@ -118,8 +118,87 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const requestPasswordReset = async (email) => {
+    try {
+      const response = await api.post('/password-reset/', { email })
+      return {
+        success: true,
+        message: response.data.message || 'Password reset link has been sent to your email.'
+      }
+    } catch (error) {
+      console.error('Password reset request error:', error.response?.data)
+      let errorMessage = 'Error sending password reset email. Please try again.'
+      if (error.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = Array.isArray(error.response.data.error) 
+            ? error.response.data.error[0] 
+            : error.response.data.error
+        } else if (error.response.data.email) {
+          errorMessage = Array.isArray(error.response.data.email)
+            ? error.response.data.email[0]
+            : error.response.data.email
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+      return {
+        success: false,
+        error: errorMessage
+      }
+    }
+  }
+
+  const resetPassword = async (uid, token, newPassword, newPasswordConfirm) => {
+    try {
+      const response = await api.post('/password-reset-confirm/', {
+        uid,
+        token,
+        new_password: newPassword,
+        new_password_confirm: newPasswordConfirm
+      })
+      return {
+        success: true,
+        message: response.data.message || 'Password has been reset successfully.'
+      }
+    } catch (error) {
+      console.error('Password reset confirm error:', error.response?.data)
+      let errorMessage = 'Error resetting password. Please try again.'
+      if (error.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = Array.isArray(error.response.data.error) 
+            ? error.response.data.error[0] 
+            : error.response.data.error
+        } else if (error.response.data.new_password) {
+          errorMessage = Array.isArray(error.response.data.new_password)
+            ? error.response.data.new_password[0]
+            : error.response.data.new_password
+        } else if (error.response.data.new_password_confirm) {
+          errorMessage = Array.isArray(error.response.data.new_password_confirm)
+            ? error.response.data.new_password_confirm[0]
+            : error.response.data.new_password_confirm
+        } else if (error.response.data.token) {
+          errorMessage = Array.isArray(error.response.data.token)
+            ? error.response.data.token[0]
+            : error.response.data.token
+        } else if (error.response.data.uid) {
+          errorMessage = Array.isArray(error.response.data.uid)
+            ? error.response.data.uid[0]
+            : error.response.data.uid
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data
+        }
+      }
+      return {
+        success: false,
+        error: errorMessage
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, requestPasswordReset, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )
