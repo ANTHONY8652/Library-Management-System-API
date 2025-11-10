@@ -345,104 +345,126 @@ class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
+        logger.info(f'Password reset request received for email: {request.data.get("email", "NOT PROVIDED")}')
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                result = serializer.save()
-                
-                # Check if result indicates email doesn't exist
-                if isinstance(result, dict) and result.get('email_exists') == False:
-                    # Email doesn't exist - return helpful message with signup suggestion
-                    return Response({
-                        'message': 'No account found with this email address.',
-                        'email_exists': False,
-                        'suggest_signup': True,
-                        'success': True  # Still return success to prevent email enumeration
-                    }, status=status.HTTP_200_OK)
-                
-                # Email exists and reset link was sent
-                email_backend = getattr(settings, 'EMAIL_BACKEND', '')
-                message = 'Password reset link has been sent to your email address.'
-                
-                # In development with console backend, add helpful note
-                if settings.DEBUG and 'console' in email_backend.lower():
-                    message += ' Please check your Django server console/terminal for the email content.'
-                
+        
+        if not serializer.is_valid():
+            logger.error(f'Password reset serializer validation failed: {serializer.errors}')
+            # Extract first error message
+            error_message = 'Invalid request. Please check your input.'
+            if serializer.errors:
+                first_error = list(serializer.errors.values())[0]
+                if isinstance(first_error, list) and first_error:
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            
+            return Response({
+                'error': error_message,
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Serializer is valid, try to save (send email)
+        try:
+            logger.info('Serializer is valid, attempting to send email...')
+            result = serializer.save()
+            logger.info(f'Serializer save returned: {result}')
+            
+            # Check if result indicates email doesn't exist
+            if isinstance(result, dict) and result.get('email_exists') == False:
+                # Email doesn't exist - return helpful message with signup suggestion
+                logger.info('Email does not exist in database')
                 return Response({
-                    'message': message,
-                    'email_exists': True,
-                    'success': True
+                    'message': 'No account found with this email address.',
+                    'email_exists': False,
+                    'suggest_signup': True,
+                    'success': True  # Still return success to prevent email enumeration
                 }, status=status.HTTP_200_OK)
-            except serializers.ValidationError as e:
-                # This is raised from the serializer with detailed error
-                logger.error(f'Password reset validation error: {str(e)}')
-                logger.error(f'ValidationError type: {type(e)}')
-                logger.error(f'ValidationError has detail: {hasattr(e, "detail")}')
-                
-                # Extract error message from ValidationError
-                error_message = 'Error sending password reset email. Please try again.'
-                
-                try:
-                    if hasattr(e, 'detail'):
-                        if isinstance(e.detail, dict):
-                            # Check for 'email' key first (from serializer)
-                            if 'email' in e.detail:
-                                email_errors = e.detail['email']
-                                if isinstance(email_errors, list) and email_errors:
-                                    error_message = email_errors[0]
-                                elif isinstance(email_errors, str):
-                                    error_message = email_errors
-                            else:
-                                # Get first error message from dict
-                                first_key = list(e.detail.keys())[0]
-                                first_value = e.detail[first_key]
-                                if isinstance(first_value, list):
-                                    error_message = first_value[0] if first_value else str(e.detail)
-                                else:
-                                    error_message = str(first_value)
-                        elif isinstance(e.detail, list):
-                            error_message = e.detail[0] if e.detail else str(e)
+            
+            # Email exists and reset link was sent
+            email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+            message = 'Password reset link has been sent to your email address.'
+            
+            # In development with console backend, add helpful note
+            if settings.DEBUG and 'console' in email_backend.lower():
+                message += ' Please check your Django server console/terminal for the email content.'
+            
+            logger.info('Password reset email sent successfully')
+            return Response({
+                'message': message,
+                'email_exists': True,
+                'success': True
+            }, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            # This is raised from the serializer with detailed error
+            logger.error(f'Password reset validation error: {str(e)}')
+            logger.error(f'ValidationError type: {type(e)}')
+            logger.error(f'ValidationError has detail: {hasattr(e, "detail")}')
+            
+            # Extract error message from ValidationError
+            error_message = 'Error sending password reset email. Please try again.'
+            
+            try:
+                if hasattr(e, 'detail'):
+                    if isinstance(e.detail, dict):
+                        # Check for 'email' key first (from serializer)
+                        if 'email' in e.detail:
+                            email_errors = e.detail['email']
+                            if isinstance(email_errors, list) and email_errors:
+                                error_message = email_errors[0]
+                            elif isinstance(email_errors, str):
+                                error_message = email_errors
                         else:
-                            error_message = str(e.detail)
+                            # Get first error message from dict
+                            first_key = list(e.detail.keys())[0]
+                            first_value = e.detail[first_key]
+                            if isinstance(first_value, list):
+                                error_message = first_value[0] if first_value else str(e.detail)
+                            else:
+                                error_message = str(first_value)
+                    elif isinstance(e.detail, list):
+                        error_message = e.detail[0] if e.detail else str(e)
                     else:
-                        # If no detail attribute, use string representation
-                        error_message = str(e)
-                        # Clean up ErrorDetail format if present
-                        if 'ErrorDetail' in error_message:
-                            import re
-                            error_message = re.sub(r"ErrorDetail\(string='([^']+)'.*\)", r'\1', error_message)
-                            error_message = error_message.strip("[]'\"")
-                except Exception as extract_error:
-                    logger.error(f'Error extracting ValidationError message: {str(extract_error)}')
-                    error_message = str(e) if str(e) else 'Error sending password reset email. Please try again.'
-                    # Clean up error message
+                        error_message = str(e.detail)
+                else:
+                    # If no detail attribute, use string representation
+                    error_message = str(e)
+                    # Clean up ErrorDetail format if present
                     if 'ErrorDetail' in error_message:
                         import re
                         error_message = re.sub(r"ErrorDetail\(string='([^']+)'.*\)", r'\1', error_message)
                         error_message = error_message.strip("[]'\"")
-                
-                logger.error(f'Returning error to client: {error_message}')
+            except Exception as extract_error:
+                logger.error(f'Error extracting ValidationError message: {str(extract_error)}')
+                error_message = str(e) if str(e) else 'Error sending password reset email. Please try again.'
+                # Clean up error message
+                if 'ErrorDetail' in error_message:
+                    import re
+                    error_message = re.sub(r"ErrorDetail\(string='([^']+)'.*\)", r'\1', error_message)
+                    error_message = error_message.strip("[]'\"")
+            
+            logger.error(f'Returning error to client: {error_message}')
+            return Response({
+                'error': error_message,
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log the error with full traceback
+            import traceback
+            logger.error(f'Password reset error: {str(e)}')
+            logger.error(f'Traceback: {traceback.format_exc()}')
+            # In development, return more details
+            if settings.DEBUG:
                 return Response({
-                    'error': error_message,
+                    'error': f'Error sending password reset email: {str(e)}. Check server logs for details.',
                     'success': False
-                }, status=status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
-                # Log the error with full traceback
-                import traceback
-                logger.error(f'Password reset error: {str(e)}')
-                logger.error(f'Traceback: {traceback.format_exc()}')
-                # In development, return more details
-                if settings.DEBUG:
-                    return Response({
-                        'error': f'Error sending password reset email: {str(e)}. Check server logs for details.',
-                        'success': False
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                else:
-                    return Response({
-                        'error': 'Error sending password reset email. Please try again later.',
-                        'success': False
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                return Response({
+                    'error': 'Error sending password reset email. Please try again later.',
+                    'success': False
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PasswordResetConfirmView(generics.GenericAPIView):

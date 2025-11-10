@@ -219,20 +219,37 @@ Library Management System Team
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
         email_backend = getattr(settings, 'EMAIL_BACKEND', '')
         email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
+        email_host_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
         
-        # Validate email configuration
+        # Log configuration before validation
+        logger.info(f'Email configuration check for {email}')
+        logger.info(f'  EMAIL_BACKEND: {email_backend}')
+        logger.info(f'  EMAIL_HOST_USER: {"SET" if email_host_user else "NOT SET"}')
+        logger.info(f'  EMAIL_HOST_PASSWORD: {"SET" if email_host_password else "NOT SET"}')
+        logger.info(f'  DEFAULT_FROM_EMAIL: {from_email}')
+        
+        # Set default from_email if not set
         if not from_email:
-            logger.error('DEFAULT_FROM_EMAIL is not set in settings')
-            raise serializers.ValidationError({'email': ['Email configuration error: DEFAULT_FROM_EMAIL is not set.']})
+            from_email = email_host_user if email_host_user else 'noreply@library.com'
+            logger.warning(f'DEFAULT_FROM_EMAIL not set, using: {from_email}')
         
-        if 'smtp' in email_backend.lower() and not email_host_user:
-            logger.error('SMTP backend requires EMAIL_HOST_USER to be set')
-            raise serializers.ValidationError({'email': ['Email configuration error: EMAIL_HOST_USER is required for SMTP.']})
+        # Check if using console backend (development)
+        if 'console' in email_backend.lower():
+            logger.info('Using console email backend - email will be printed to terminal')
+            # Don't raise error for console backend, just log it
+        elif 'smtp' in email_backend.lower():
+            # For SMTP, check if credentials are set
+            if not email_host_user or not email_host_password:
+                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are required for SMTP. Please set these environment variables.'
+                logger.error(error_msg)
+                raise serializers.ValidationError({'email': [error_msg]})
         
         # Log email details for debugging
-        logger.info(f'Attempting to send password reset email to {email} using backend: {email_backend}')
-        logger.info(f'From email: {from_email}')
-        logger.info(f'Reset URL: {reset_url}')
+        logger.info(f'Attempting to send password reset email to {email}')
+        logger.info(f'  Backend: {email_backend}')
+        logger.info(f'  From: {from_email}')
+        logger.info(f'  To: {email}')
+        logger.info(f'  Reset URL: {reset_url}')
         
         try:
             result = send_mail(
