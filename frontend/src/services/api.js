@@ -1,7 +1,10 @@
 import axios from 'axios'
 
-// Backend API URL - Production: Render backend, Development: localhost
-const BACKEND_URL = 'https://library-management-system-api-of7r.onrender.com'
+// Backend API URL - Can be set via environment variable or defaults
+// For custom domain: Set VITE_API_URL in Vercel environment variables
+// Format: https://api.yourdomain.com/api (or just https://api.yourdomain.com if you want to add /api in the baseURL)
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
+  'https://library-management-system-api-of7r.onrender.com'
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.PROD 
     ? `${BACKEND_URL}/api` 

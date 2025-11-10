@@ -45,13 +45,15 @@ if DEBUG:
     ALLOWED_HOSTS.extend(['localhost', '127.0.0.1'])
 
 # Auto-detect Render deployment and add Render hostname
+# Priority: Custom domain (from ALLOWED_HOSTS env) > RENDER_EXTERNAL_URL > Fallback
 render_external_url = os.getenv("RENDER_EXTERNAL_URL", "")
 if os.getenv("RENDER") or render_external_url:
     # Render sets RENDER=true and provides environment variables
     render_service_name = os.getenv("RENDER_SERVICE_NAME", "")
     
     if render_external_url:
-        # Extract hostname from URL (e.g., https://library-backend-xxxx.onrender.com -> library-backend-xxxx.onrender.com)
+        # Extract hostname from URL (e.g., https://api.yourdomain.com -> api.yourdomain.com)
+        # or https://library-backend-xxxx.onrender.com -> library-backend-xxxx.onrender.com
         from urllib.parse import urlparse
         parsed = urlparse(render_external_url)
         if parsed.hostname:
@@ -59,10 +61,21 @@ if os.getenv("RENDER") or render_external_url:
             # Also add without port if it was included
             if ':' in parsed.hostname:
                 ALLOWED_HOSTS.append(parsed.hostname.split(':')[0])
+            # For custom domains, also add www variant if not already present
+            if not parsed.hostname.startswith('www.') and '.' in parsed.hostname:
+                domain_parts = parsed.hostname.split('.')
+                if len(domain_parts) >= 2:
+                    # Add www variant for custom domains (not for .onrender.com)
+                    if not parsed.hostname.endswith('.onrender.com'):
+                        www_host = 'www.' + parsed.hostname
+                        if www_host not in ALLOWED_HOSTS:
+                            ALLOWED_HOSTS.append(www_host)
     
-    # Fallback: add known Render URL
-    if not ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append('library-management-system-api-of7r.onrender.com')
+    # Fallback: add known Render URL (only if no custom domain is set)
+    if not ALLOWED_HOSTS or all('onrender.com' in host for host in ALLOWED_HOSTS):
+        # Only add fallback if we don't have a custom domain
+        if not any(host for host in ALLOWED_HOSTS if 'onrender.com' not in host):
+            ALLOWED_HOSTS.append('library-management-system-api-of7r.onrender.com')
     
     # If we still don't have a hostname, try to construct it from service name
     # Note: Render URLs are typically {service-name}-{random-id}.onrender.com
@@ -308,6 +321,18 @@ LOGGING = {
 cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if cors_origins_env:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    # Also add www variants for custom domains
+    www_origins = []
+    for origin in CORS_ALLOWED_ORIGINS:
+        if origin.startswith('https://') and not origin.startswith('https://www.'):
+            www_origin = origin.replace('https://', 'https://www.')
+            if www_origin not in CORS_ALLOWED_ORIGINS:
+                www_origins.append(www_origin)
+        elif origin.startswith('http://') and not origin.startswith('http://www.'):
+            www_origin = origin.replace('http://', 'http://www.')
+            if www_origin not in CORS_ALLOWED_ORIGINS:
+                www_origins.append(www_origin)
+    CORS_ALLOWED_ORIGINS.extend(www_origins)
 else:
     # Default to localhost for development
     if DEBUG:
@@ -320,6 +345,7 @@ else:
     else:
         # In production, allow all origins (you can restrict this later with CORS_ALLOWED_ORIGINS)
         # This allows Vercel and any other frontend deployment
+        # For better security, set CORS_ALLOWED_ORIGINS with your frontend domain(s)
         CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True

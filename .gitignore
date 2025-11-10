@@ -215,6 +215,8 @@ SECURITY_CHECKLIST.md
 TEST_COVERAGE.md
 DEPLOYMENT_CHECKLIST.md
 QUICK_START_DEPLOY.md
+CUSTOM_DOMAIN_SETUP.md
+VERCEL_DOMAIN_SETUP.md
 render.yaml
 
 # ============================================
