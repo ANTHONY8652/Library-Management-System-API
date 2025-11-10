@@ -401,17 +401,30 @@ SESSION_COOKIE_AGE = 86400  # 1 day
 # DEFAULT_FROM_EMAIL: email address to send from
 # FRONTEND_URL: frontend URL for password reset links (e.g., 'http://localhost:3000' or 'https://yourdomain.com')
 
-EMAIL_BACKEND = os.getenv(
-    'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend'  # Console backend for development
-)
+# Email Backend Configuration
+# If EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set, use SMTP backend
+# Otherwise, use console backend for development (emails printed to terminal)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+# Auto-detect email backend based on configuration
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    # Use SMTP backend if credentials are provided (real emails)
+    EMAIL_BACKEND = os.getenv(
+        'EMAIL_BACKEND',
+        'django.core.mail.backends.smtp.EmailBackend'
+    )
+else:
+    # Use console backend if no credentials (development - emails to terminal)
+    EMAIL_BACKEND = os.getenv(
+        'EMAIL_BACKEND',
+        'django.core.mail.backends.console.EmailBackend'
+    )
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@library.com')
 
 # Frontend URL for password reset links

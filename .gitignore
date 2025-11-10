@@ -40,8 +40,9 @@ local_settings.py
 .env.test.local
 .env.production.local
 .env.*.local
-*.env
 .envrc
+# Keep env.example as template
+!env.example
 
 # Secrets and keys
 *.key
@@ -196,28 +197,11 @@ celerybeat.pid
 .render/
 
 # ============================================
-# Sensitive Documentation Files
-# (contain implementation details, bugs, security info)
+# Documentation (keep only README.md)
 # ============================================
-BACKEND_ORIGINAL_STATE.md
-TRANSACTION_BUGS_ANALYSIS.md
-TRANSACTION_FIXES_SUMMARY.md
-ENDPOINT_AUDIT.md
-PRODUCTION_FEATURES_SUMMARY.md
-MISSING_FEATURES.md
-frontend/FRONTEND_REVIEW.md
-ALLOWED_HOSTS_DEPLOYMENT_CHEATSHEET.md
-HIRING_ASSESSMENT.md
-TRANSACTION_FIXES_SUMMARY.md
-TRANSACTION_BUGS_ANALYSIS.md
-SUPABASE_SETTINGS_IPDATE.md
-SECURITY_CHECKLIST.md
-TEST_COVERAGE.md
-DEPLOYMENT_CHECKLIST.md
-QUICK_START_DEPLOY.md
-CUSTOM_DOMAIN_SETUP.md
-VERCEL_DOMAIN_SETUP.md
-render.yaml
+*.md
+!README.md
+!frontend/README.md
 
 # ============================================
 # Project Specific

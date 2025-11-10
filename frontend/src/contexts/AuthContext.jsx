@@ -123,7 +123,9 @@ export function AuthProvider({ children }) {
       const response = await api.post('/password-reset/', { email })
       return {
         success: true,
-        message: response.data.message || 'Password reset link has been sent to your email.'
+        message: response.data.message || 'Password reset link has been sent to your email.',
+        email_exists: response.data.email_exists,
+        suggest_signup: response.data.suggest_signup
       }
     } catch (error) {
       console.error('Password reset request error:', error.response?.data)

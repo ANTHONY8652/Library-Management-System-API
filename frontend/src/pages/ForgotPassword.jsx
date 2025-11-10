@@ -1,31 +1,51 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { BookOpen, Mail, ArrowLeft } from 'lucide-react'
+import { BookOpen, Mail, ArrowLeft, UserPlus, AlertCircle } from 'lucide-react'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false)
   const [loading, setLoading] = useState(false)
   const { requestPasswordReset } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
+    setShowSignupPrompt(false)
     setLoading(true)
 
     const result = await requestPasswordReset(email)
     
     if (result.success) {
-      setSuccess(result.message || 'If an account with this email exists, a password reset link has been sent.')
-      setEmail('')
+      // Check if email doesn't exist
+      if (result.email_exists === false || result.suggest_signup) {
+        setShowSignupPrompt(true)
+        setSuccess(result.message || 'No account found with this email address.')
+      } else {
+        // Email exists and reset link was sent
+        const message = result.message || 'Password reset link has been sent to your email address.'
+        setSuccess(message)
+        setEmail('')
+        
+        // If message mentions console, make it more prominent
+        if (message.includes('console') || message.includes('terminal')) {
+          setSuccess(message + ' Please check the terminal/console where your Django server is running.')
+        }
+      }
     } else {
       setError(result.error || 'Error sending password reset email. Please try again.')
     }
     
     setLoading(false)
+  }
+
+  const handleGoToSignup = () => {
+    navigate('/register')
   }
 
   return (
@@ -53,9 +73,31 @@ export default function ForgotPassword() {
               </div>
             )}
             
-            {success && (
+            {success && !showSignupPrompt && (
               <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
                 {success}
+              </div>
+            )}
+
+            {showSignupPrompt && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-4 rounded-lg">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium mb-2">{success}</p>
+                    <p className="text-sm mb-3">
+                      It looks like you don't have an account yet. Would you like to create one?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGoToSignup}
+                      className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create Account
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             
@@ -71,7 +113,15 @@ export default function ForgotPassword() {
                 className="input-field"
                 placeholder="Enter your email address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  // Clear signup prompt when user starts typing
+                  if (showSignupPrompt) {
+                    setShowSignupPrompt(false)
+                    setSuccess('')
+                  }
+                }}
+                disabled={loading}
               />
             </div>
 

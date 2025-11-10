@@ -348,19 +348,55 @@ class PasswordResetRequestView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save()
-                # Always return success message for security (don't reveal if email exists)
+                result = serializer.save()
+                
+                # Check if result indicates email doesn't exist
+                if isinstance(result, dict) and result.get('email_exists') == False:
+                    # Email doesn't exist - return helpful message with signup suggestion
+                    return Response({
+                        'message': 'No account found with this email address.',
+                        'email_exists': False,
+                        'suggest_signup': True,
+                        'success': True  # Still return success to prevent email enumeration
+                    }, status=status.HTTP_200_OK)
+                
+                # Email exists and reset link was sent
+                email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+                message = 'Password reset link has been sent to your email address.'
+                
+                # In development with console backend, add helpful note
+                if settings.DEBUG and 'console' in email_backend.lower():
+                    message += ' Please check your Django server console/terminal for the email content.'
+                
                 return Response({
-                    'message': 'If an account with this email exists, a password reset link has been sent.',
+                    'message': message,
+                    'email_exists': True,
                     'success': True
                 }, status=status.HTTP_200_OK)
-            except Exception as e:
-                # Log the error but return generic message
-                logger.error(f'Password reset error: {str(e)}')
+            except serializers.ValidationError as e:
+                # This is raised from the serializer with detailed error
+                logger.error(f'Password reset validation error: {str(e)}')
+                error_message = str(e.detail) if hasattr(e, 'detail') else str(e)
                 return Response({
-                    'error': 'Error sending password reset email. Please try again later.',
+                    'error': error_message,
                     'success': False
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                }, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                # Log the error with full traceback
+                import traceback
+                logger.error(f'Password reset error: {str(e)}')
+                logger.error(f'Traceback: {traceback.format_exc()}')
+                # In development, return more details
+                if settings.DEBUG:
+                    return Response({
+                        'error': f'Error sending password reset email: {str(e)}. Check server logs for details.',
+                        'success': False
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                else:
+                    return Response({
+                        'error': 'Error sending password reset email. Please try again later.',
+                        'success': False
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

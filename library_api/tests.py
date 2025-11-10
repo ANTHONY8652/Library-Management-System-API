@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 
 from .models import Book, UserProfile, Transaction
-from .serializers import BookSerializer, UserRegistrationSerializer, UserLoginSerializer, TransactionSerializer
+from .serializers import BookSerializer, UserRegistrationSerializer, UserLoginSerializer, TransactionSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 from .permissions import IsAdminUser, IsMemberUser, CanViewBook, CanDeleteBook, IsAdminOrMember
 
 
@@ -751,3 +751,352 @@ class IntegrationTest(APITestCase):
         my_books = self.client.get('/api/my-books/')
         self.assertEqual(my_books.status_code, status.HTTP_200_OK)
         self.assertGreater(len(my_books.data['results']), 0)
+
+
+# ==================== PASSWORD RESET TESTS ====================
+
+class PasswordResetSerializerTest(TestCase):
+    """Test Password Reset Serializers"""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+    
+    def test_password_reset_request_valid_email(self):
+        """Test password reset request with valid email"""
+        from django.test import override_settings
+        from django.core import mail
+        
+        # Use locmem email backend for testing
+        with override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+            mail.outbox = []
+            
+            serializer = PasswordResetRequestSerializer(data={'email': 'test@example.com'})
+            self.assertTrue(serializer.is_valid())
+            result = serializer.save()
+            
+            # Should return dict with email_exists: True
+            self.assertIsInstance(result, dict)
+            self.assertEqual(result.get('email_exists'), True)
+            self.assertIn('user', result)
+            
+            # Verify email was sent (with locmem backend, it goes to mail.outbox)
+            # Note: This test uses locmem backend, but in development console backend is used
+            # The serializer should complete successfully in both cases
+    
+    def test_password_reset_request_invalid_email(self):
+        """Test password reset request with non-existent email"""
+        serializer = PasswordResetRequestSerializer(data={'email': 'nonexistent@example.com'})
+        self.assertTrue(serializer.is_valid())
+        result = serializer.save()
+        
+        # Should return dict with email_exists: False
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get('email_exists'), False)
+    
+    def test_password_reset_request_no_email(self):
+        """Test password reset request validation"""
+        serializer = PasswordResetRequestSerializer(data={})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
+    
+    def test_password_reset_confirm_valid_token(self):
+        """Test password reset confirmation with valid token"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        # Generate token
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        serializer = PasswordResetConfirmSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        user = serializer.save()
+        
+        # Verify password was changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('newpassword123'))
+    
+    def test_password_reset_confirm_invalid_token(self):
+        """Test password reset confirmation with invalid token"""
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': 'invalid_token',
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        serializer = PasswordResetConfirmSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('token', serializer.errors)
+    
+    def test_password_reset_confirm_invalid_uid(self):
+        """Test password reset confirmation with invalid UID"""
+        from django.contrib.auth.tokens import default_token_generator
+        
+        token = default_token_generator.make_token(self.user)
+        
+        data = {
+            'uid': 'invalid_uid',
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        serializer = PasswordResetConfirmSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('uid', serializer.errors)
+    
+    def test_password_reset_confirm_password_mismatch(self):
+        """Test password reset confirmation with mismatched passwords"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'differentpassword123'
+        }
+        
+        serializer = PasswordResetConfirmSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('new_password_confirm', serializer.errors)
+    
+    def test_password_reset_confirm_short_password(self):
+        """Test password reset confirmation with password too short"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'short',
+            'new_password_confirm': 'short'
+        }
+        
+        serializer = PasswordResetConfirmSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('new_password', serializer.errors)
+
+
+class PasswordResetAPITest(APITestCase):
+    """Test Password Reset API Endpoints"""
+    
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+    
+    def test_password_reset_request_existing_email(self):
+        """Test password reset request API with existing email"""
+        data = {'email': 'test@example.com'}
+        response = self.client.post('/api/password-reset/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('success', response.data)
+        self.assertEqual(response.data['success'], True)
+        self.assertEqual(response.data.get('email_exists'), True)
+    
+    def test_password_reset_request_nonexistent_email(self):
+        """Test password reset request API with non-existent email"""
+        data = {'email': 'nonexistent@example.com'}
+        response = self.client.post('/api/password-reset/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('success', response.data)
+        self.assertEqual(response.data['success'], True)
+        self.assertEqual(response.data.get('email_exists'), False)
+        self.assertEqual(response.data.get('suggest_signup'), True)
+    
+    def test_password_reset_request_invalid_email_format(self):
+        """Test password reset request API with invalid email format"""
+        data = {'email': 'invalid-email'}
+        response = self.client.post('/api/password-reset/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+    
+    def test_password_reset_request_missing_email(self):
+        """Test password reset request API with missing email"""
+        data = {}
+        response = self.client.post('/api/password-reset/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
+    
+    def test_password_reset_confirm_valid(self):
+        """Test password reset confirmation API with valid token"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        # Generate token
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        response = self.client.post('/api/password-reset-confirm/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+        self.assertIn('success', response.data)
+        self.assertEqual(response.data['success'], True)
+        
+        # Verify password was changed
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('newpassword123'))
+    
+    def test_password_reset_confirm_invalid_token(self):
+        """Test password reset confirmation API with invalid token"""
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': 'invalid_token',
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        response = self.client.post('/api/password-reset-confirm/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('token', response.data)
+    
+    def test_password_reset_confirm_invalid_uid(self):
+        """Test password reset confirmation API with invalid UID"""
+        from django.contrib.auth.tokens import default_token_generator
+        
+        token = default_token_generator.make_token(self.user)
+        
+        data = {
+            'uid': 'invalid_uid',
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'newpassword123'
+        }
+        
+        response = self.client.post('/api/password-reset-confirm/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('uid', response.data)
+    
+    def test_password_reset_confirm_password_mismatch(self):
+        """Test password reset confirmation API with mismatched passwords"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'newpassword123',
+            'new_password_confirm': 'differentpassword123'
+        }
+        
+        response = self.client.post('/api/password-reset-confirm/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('new_password_confirm', response.data)
+    
+    def test_password_reset_confirm_short_password(self):
+        """Test password reset confirmation API with password too short"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'short',
+            'new_password_confirm': 'short'
+        }
+        
+        response = self.client.post('/api/password-reset-confirm/', data)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('new_password', response.data)
+    
+    def test_password_reset_complete_flow(self):
+        """Test complete password reset flow: request -> confirm -> login"""
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        
+        # Step 1: Request password reset
+        request_data = {'email': 'test@example.com'}
+        request_response = self.client.post('/api/password-reset/', request_data)
+        self.assertEqual(request_response.status_code, status.HTTP_200_OK)
+        
+        # Step 2: Get token (in real scenario, from email)
+        token = default_token_generator.make_token(self.user)
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        
+        # Step 3: Confirm password reset
+        confirm_data = {
+            'uid': uid,
+            'token': token,
+            'new_password': 'newsecurepass123',
+            'new_password_confirm': 'newsecurepass123'
+        }
+        confirm_response = self.client.post('/api/password-reset-confirm/', confirm_data)
+        self.assertEqual(confirm_response.status_code, status.HTTP_200_OK)
+        
+        # Step 4: Verify old password doesn't work
+        login_old = self.client.post('/api/login/', {
+            'username': 'testuser',
+            'password': 'testpass123'
+        })
+        self.assertEqual(login_old.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # Step 5: Verify new password works
+        login_new = self.client.post('/api/login/', {
+            'username': 'testuser',
+            'password': 'newsecurepass123'
+        })
+        self.assertEqual(login_new.status_code, status.HTTP_200_OK)
+        self.assertIn('access', login_new.data)

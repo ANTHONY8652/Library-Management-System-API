@@ -172,11 +172,23 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def save(self):
         email = self.validated_data['email']
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # Return success even if user doesn't exist for security
-            return None
+            # Log for debugging in development
+            logger.info(f'Password reset requested for non-existent email: {email}')
+            # Return a special marker to indicate email doesn't exist
+            # This allows frontend to show signup link
+            return {'email_exists': False}
+        
+        # Check if user has an email address
+        if not user.email:
+            logger.warning(f'User {user.username} has no email address set')
+            # Return marker indicating issue
+            return {'email_exists': False}
         
         # Generate token
         token = default_token_generator.make_token(user)
@@ -190,8 +202,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         
         # Send email
         subject = 'Password Reset Request - Library Management System'
-        message = f'''
-Hello {user.username},
+        message = f'''Hello {user.username},
 
 You requested a password reset for your account. Please click the link below to reset your password:
 
@@ -206,22 +217,36 @@ Library Management System Team
 '''
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@library.com')
         
+        # Log email details for debugging
+        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        logger.info(f'Attempting to send password reset email to {email} using backend: {email_backend}')
+        logger.info(f'Reset URL: {reset_url}')
+        
         try:
-            send_mail(
+            result = send_mail(
                 subject,
                 message,
                 from_email,
                 [email],
                 fail_silently=False,
             )
+            logger.info(f'Password reset email sent successfully to {email}. Result: {result}')
+            # In development with console backend, remind about console output
+            if 'console' in email_backend.lower():
+                logger.info('NOTE: Email backend is set to console. Check your Django server console/terminal for the email content.')
         except Exception as e:
-            # Log error but don't expose it to user
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f'Error sending password reset email: {str(e)}')
-            raise serializers.ValidationError('Error sending email. Please try again later.')
+            # Log detailed error for debugging
+            import traceback
+            logger.error(f'Error sending password reset email to {email}: {str(e)}')
+            logger.error(f'Traceback: {traceback.format_exc()}')
+            # In development, include more details
+            if settings.DEBUG:
+                raise serializers.ValidationError(f'Error sending email: {str(e)}. Check server logs for details.')
+            else:
+                raise serializers.ValidationError('Error sending email. Please try again later.')
         
-        return user
+        # Return success with email_exists flag
+        return {'email_exists': True, 'user': user}
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
@@ -240,11 +265,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         min_length=8
     )
 
-    def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match'})
-        return attrs
-
     def validate_uid(self, value):
         try:
             uid = force_str(urlsafe_base64_decode(value))
@@ -254,13 +274,21 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid reset link')
         return value
 
-    def validate_token(self, value):
-        if not hasattr(self, 'user'):
-            return value
+    def validate(self, attrs):
+        # Validate password match
+        if attrs.get('new_password') != attrs.get('new_password_confirm'):
+            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match'})
         
-        if not default_token_generator.check_token(self.user, value):
-            raise serializers.ValidationError('Invalid or expired reset link')
-        return value
+        # Validate uid and token - ensure user is set first
+        if not hasattr(self, 'user'):
+            raise serializers.ValidationError({'uid': 'Invalid reset link'})
+        
+        # Validate token
+        token = attrs.get('token')
+        if not default_token_generator.check_token(self.user, token):
+            raise serializers.ValidationError({'token': 'Invalid or expired reset link'})
+        
+        return attrs
 
     def save(self):
         user = self.user
