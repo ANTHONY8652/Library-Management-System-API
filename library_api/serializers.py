@@ -48,12 +48,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'username', 'email', 'role', 'date_of_membership', 'active_status', 'loan_duration']
 
 class TransactionSerializer(serializers.ModelSerializer):
-    # For writing: accept book ID (PrimaryKeyRelatedField)
-    # For reading: include full book details via to_representation
     book = serializers.PrimaryKeyRelatedField(queryset=Book.objects.all(), required=False)
     
     def to_representation(self, instance):
-        """Include full book details when reading"""
         representation = super().to_representation(instance)
         if instance.book:
             representation['book'] = BookSerializer(instance.book).data
@@ -64,12 +61,6 @@ class TransactionSerializer(serializers.ModelSerializer):
             return self.book
         else:
             return serializers.ValidationError(f'{self.title} is not available')
-    """     
-    def validate_book(self, book):
-        if book.copies_available <= 0:
-            raise serializers.ValidationError('No copies available for checkout')
-        return book
-    """
     def borrow(self):
         if self.is_available():
             self.copies_available -= 1
@@ -84,19 +75,12 @@ class TransactionSerializer(serializers.ModelSerializer):
         return_date = attrs.get('return_date')
         due_date = attrs.get('due_date')
 
-        # For partial updates (PATCH), we might not have all fields
-        # Only validate book if:
-        # 1. This is a new transaction (no instance) - book is required for checkout
-        # 2. Book is explicitly being updated (in attrs)
-        # For return operations, we only update return_date, so book validation is skipped
-        if not self.instance:  # New transaction (checkout)
+        if not self.instance:
             if not book:
                 raise serializers.ValidationError('Book is required')
-            # Only check availability for new checkouts
             if book.copies_available == 0:
                 raise serializers.ValidationError('No copies available for checkout')
-        elif book:  # Existing transaction, but book is being updated
-            # If book is being changed, validate availability
+        elif book:
             if book.copies_available == 0:
                 raise serializers.ValidationError('No copies available for checkout')
         
@@ -106,10 +90,10 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = ['id', 'book', 'user', 'checkout_date', 'return_date', 'due_date', 'overdue_penalty']
         extra_kwargs = {
-            'user': {'required': False},  # Set automatically in perform_create
-            'checkout_date': {'required': False},  # Can be set in perform_create if not provided
-            'due_date': {'required': False},  # Auto-calculated
-            'return_date': {'required': False}  # None for new checkouts
+            'user': {'required': False},
+            'checkout_date': {'required': False},
+            'due_date': {'required': False},
+            'return_date': {'required': False}
         }
         
 
