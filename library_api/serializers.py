@@ -163,11 +163,13 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        try:
-            user = User.objects.get(email=value)
-        except User.DoesNotExist:
-            # Don't reveal if email exists for security
-            pass
+        # Normalize email by trimming whitespace
+        if not value:
+            raise serializers.ValidationError('Email is required')
+        value = value.strip()
+        # Validate email format
+        if '@' not in value or '.' not in value.split('@')[1] if '@' in value else '':
+            raise serializers.ValidationError('Invalid email format')
         return value
 
     def save(self):
@@ -175,19 +177,46 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         import logging
         logger = logging.getLogger(__name__)
         
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            # Log for debugging in development
-            logger.info(f'Password reset requested for non-existent email: {email}')
-            # Return a special marker to indicate email doesn't exist
-            # This allows frontend to show signup link
-            return {'email_exists': False}
+        # Normalize email: trim whitespace and convert to lowercase
+        email = email.strip() if email else email
+        email_lower = email.lower() if email else email
         
-        # Check if user has an email address
-        if not user.email:
-            logger.warning(f'User {user.username} has no email address set')
-            # Return marker indicating issue
+        # Find user with exact email match (case-insensitive for email, but exact string match)
+        # This ensures only the exact email matches - no partial or similar matches
+        # Example: "test@example.com" will match "Test@Example.com" (case-insensitive)
+        # But "test@example.com" will NOT match "test123@example.com" (exact match required)
+        try:
+            # Use case-insensitive exact match (__iexact) which matches exact email regardless of case
+            # This is standard email behavior - emails are case-insensitive
+            # But __iexact ensures it's an exact match, not a partial match
+            user = User.objects.filter(email__iexact=email_lower).first()
+            
+            if not user:
+                logger.info(f'Password reset requested for non-existent email: {email}')
+                return {'email_exists': False}
+            
+            # Verify the user's email exists and is not empty
+            if not user.email or user.email.strip() == '':
+                logger.warning(f'User {user.username} has no email address set')
+                return {'email_exists': False}
+            
+            # Double-check: compare normalized emails to ensure exact match
+            # This prevents any edge cases where database collation might allow partial matches
+            user_email_normalized = user.email.strip().lower()
+            if user_email_normalized != email_lower:
+                logger.warning(f'Email normalization mismatch: user email "{user.email}" normalized to "{user_email_normalized}" does not match requested "{email}" normalized to "{email_lower}"')
+                return {'email_exists': False}
+                
+        except User.MultipleObjectsReturned:
+            # Multiple users with same email (shouldn't happen, but handle it)
+            logger.error(f'Multiple users found with email: {email}')
+            # Still try to get one and proceed
+            user = User.objects.filter(email__iexact=email).first()
+            if not user:
+                return {'email_exists': False}
+        except Exception as e:
+            # Catch any database errors
+            logger.error(f'Error looking up user by email {email}: {str(e)}')
             return {'email_exists': False}
         
         # Generate token
@@ -252,6 +281,12 @@ Library Management System Team
         logger.info(f'  Reset URL: {reset_url}')
         
         try:
+            # Check if we're in production with console backend (this shouldn't happen)
+            if not settings.DEBUG and 'console' in email_backend.lower():
+                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production. Console backend cannot send real emails.'
+                logger.error(error_msg)
+                raise serializers.ValidationError({'email': [error_msg]})
+            
             result = send_mail(
                 subject,
                 message,
@@ -260,9 +295,13 @@ Library Management System Team
                 fail_silently=False,
             )
             logger.info(f'Password reset email sent successfully to {email}. Result: {result}')
+            
             # In development with console backend, remind about console output
             if 'console' in email_backend.lower():
-                logger.info('NOTE: Email backend is set to console. Check your Django server console/terminal for the email content.')
+                logger.warning('NOTE: Email backend is set to console. Email was printed to terminal, not actually sent.')
+                # Still return success in development, but log warning
+                if settings.DEBUG:
+                    logger.info('In production, you must set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD to send real emails.')
         except Exception as e:
             # Log detailed error for debugging
             import traceback

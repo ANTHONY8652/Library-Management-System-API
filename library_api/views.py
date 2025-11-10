@@ -386,9 +386,18 @@ class PasswordResetRequestView(generics.GenericAPIView):
             email_backend = getattr(settings, 'EMAIL_BACKEND', '')
             message = 'Password reset link has been sent to your email address.'
             
-            # In development with console backend, add helpful note
-            if settings.DEBUG and 'console' in email_backend.lower():
-                message += ' Please check your Django server console/terminal for the email content.'
+            # Check if using console backend
+            if 'console' in email_backend.lower():
+                if settings.DEBUG:
+                    # Development: console backend is OK
+                    message += ' Please check your Django server console/terminal for the email content.'
+                else:
+                    # Production: console backend is a problem
+                    logger.error('PRODUCTION ERROR: Using console email backend! Emails are not being sent.')
+                    return Response({
+                        'error': 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production to send emails.',
+                        'success': False
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             logger.info('Password reset email sent successfully')
             return Response({
