@@ -2,13 +2,25 @@ import axios from 'axios'
 
 // Backend API URL - Can be set via environment variable or defaults
 // For custom domain: Set VITE_API_URL in Vercel environment variables
-// Format: https://api.yourdomain.com/api (or just https://api.yourdomain.com if you want to add /api in the baseURL)
-const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 
-  'https://library-management-system-api-of7r.onrender.com'
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD 
-    ? `${BACKEND_URL}/api` 
-    : 'http://localhost:8000/api')
+// Format: https://api.yourdomain.com/api
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is set, use it (should include /api)
+  if (import.meta.env.VITE_API_URL) {
+    const url = import.meta.env.VITE_API_URL.trim()
+    // Ensure it ends with /api
+    return url.endsWith('/api') ? url : `${url}/api`
+  }
+  
+  // Production: use custom domain API
+  if (import.meta.env.PROD) {
+    return 'https://api.librarymanagementsystem.store/api'
+  }
+  
+  // Development: use localhost
+  return 'http://localhost:8000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
