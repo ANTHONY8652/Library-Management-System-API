@@ -186,31 +186,26 @@ class ReturnBookview(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsAdminOrMember]
 
     def perform_update(self, serializer):
-        try:
-            transaction = serializer.instance
-            # Check if user owns this transaction and it's not already returned
-            if transaction.user == self.request.user and transaction.return_date is None:
-                # Set return date to today
-                transaction.return_date = timezone.now().date()  # Use .date() not datetime
-                
-                # Increase available copies
-                transaction.book.copies_available += 1
-                transaction.book.save()
-                
-                # Recalculate penalty if overdue
-                transaction.calculate_penalty()
-                
-                # Save the transaction
-                serializer.save()
-            else:
-                if transaction.return_date is not None:
-                    raise serializers.ValidationError('This book has already been returned.')
-                else:
-                    raise serializers.ValidationError('You are not authorized to return this book.')
-        except serializers.ValidationError:
-            raise  # Re-raise validation errors
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        transaction = serializer.instance
+        # Check if user owns this transaction and it's not already returned
+        if transaction.return_date is not None:
+            raise serializers.ValidationError('This book has already been returned.')
+        
+        if transaction.user != self.request.user:
+            raise serializers.ValidationError('You are not authorized to return this book.')
+        
+        # Set return date to today
+        transaction.return_date = timezone.now().date()  # Use .date() not datetime
+        
+        # Increase available copies
+        transaction.book.copies_available += 1
+        transaction.book.save()
+        
+        # Recalculate penalty if overdue
+        transaction.calculate_penalty()
+        
+        # Save the transaction
+        serializer.save()
 
 class MyBooksView(generics.ListAPIView):
     """Get all currently borrowed books (not returned) for the authenticated user"""
