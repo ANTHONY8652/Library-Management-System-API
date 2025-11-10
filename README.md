@@ -6,6 +6,9 @@ A modern, full-stack library management system built with Django REST Framework 
 ![Python](https://img.shields.io/badge/python-3.12.7-blue)
 ![Django](https://img.shields.io/badge/django-5.0.7-green)
 ![React](https://img.shields.io/badge/react-18.2.0-blue)
+![PostgreSQL](https://img.shields.io/badge/postgresql-16+-blue)
+![Vite](https://img.shields.io/badge/vite-6.4.1-purple)
+![Tailwind CSS](https://img.shields.io/badge/tailwind-3.3.6-teal)
 
 ## ✨ Features
 
@@ -43,19 +46,75 @@ A modern, full-stack library management system built with Django REST Framework 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Django 5.0.7** - High-level Python web framework
-- **Django REST Framework** - Powerful toolkit for building Web APIs
-- **PostgreSQL** - Robust relational database
-- **JWT Authentication** - Secure token-based authentication
-- **Django CORS Headers** - Handling Cross-Origin Resource Sharing
+
+![Python](https://img.shields.io/badge/Python-3.12.7-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Django](https://img.shields.io/badge/Django-5.0.7-092E20?style=for-the-badge&logo=django&logoColor=white)
+![Django REST Framework](https://img.shields.io/badge/DRF-3.14.0-red?style=for-the-badge&logo=django&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+
+| Category | Technology | Version | Purpose |
+|----------|-----------|---------|---------|
+| **Framework** | Django | 5.0.7 | High-level Python web framework |
+| **API** | Django REST Framework | 3.14.0 | Powerful toolkit for building Web APIs |
+| **Database** | PostgreSQL | 16+ | Robust relational database |
+| **Authentication** | JWT (djangorestframework-simplejwt) | 5.2.2 | Secure token-based authentication |
+| **API Docs** | drf-yasg | 1.21.7 | Swagger/OpenAPI documentation |
+| **Filtering** | django-filter | 23.2 | Advanced filtering and search capabilities |
+| **CORS** | django-cors-headers | 4.3.1 | Handling Cross-Origin Resource Sharing |
+| **Environment** | python-dotenv | 1.0.0 | Environment variable management |
+| **Server** | Gunicorn | 21.2.0 | Production WSGI HTTP Server |
+| **Static Files** | WhiteNoise | 6.6.0 | Static file serving for production |
 
 ### Frontend
-- **React 18** - Modern React with hooks
-- **Vite** - Fast build tool and dev server
-- **React Router** - Client-side routing
-- **Tailwind CSS** - Utility-first CSS framework
-- **Axios** - HTTP client for API calls
-- **Lucide React** - Beautiful icon library
+
+![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-6.4.1-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.3.6-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router-6.20.0-CA4245?style=for-the-badge&logo=react-router&logoColor=white)
+
+| Category | Technology | Version | Purpose |
+|----------|-----------|---------|---------|
+| **Framework** | React | 18.2.0 | Modern UI library with hooks |
+| **Build Tool** | Vite | 6.4.1 | Fast build tool and dev server |
+| **Routing** | React Router | 6.20.0 | Client-side routing |
+| **Styling** | Tailwind CSS | 3.3.6 | Utility-first CSS framework |
+| **HTTP Client** | Axios | 1.6.2 | Promise-based HTTP client |
+| **Icons** | Lucide React | 0.294.0 | Beautiful icon library |
+| **CSS Processing** | PostCSS | 8.4.32 | CSS transformer |
+| **Autoprefixer** | Autoprefixer | 10.4.16 | CSS vendor prefixing |
+
+### Development Tools
+
+| Tool | Purpose |
+|------|---------|
+| **Git** | Version control |
+| **npm** | Package management |
+| **pip** | Python package management |
+| **PostgreSQL** | Database management |
+| **VS Code / Cursor** | Code editor |
+
+### Deployment
+
+| Platform | Purpose |
+|----------|---------|
+| **Render** | Backend deployment (Django) |
+| **Vercel** | Frontend deployment (React) |
+| **PostgreSQL** | Database hosting |
+
+### Architecture
+
+```
+┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│   React Frontend│ ◄─────► │  Django REST API │ ◄─────► │   PostgreSQL    │
+│   (Vite + React)│  HTTP   │  (DRF + JWT)     │  SQL    │    Database     │
+└─────────────────┘         └──────────────────┘         └─────────────────┘
+         │                           │
+         │                           │
+    ┌────▼────┐                ┌────▼────┐
+    │ Vercel  │                │ Render  │
+    │ (CDN)   │                │ (Server)│
+    └─────────┘                └─────────┘
+```
 
 ## 📋 Prerequisites
 
