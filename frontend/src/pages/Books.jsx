@@ -20,18 +20,26 @@ export default function Books() {
 
   useEffect(() => {
     fetchBooks()
-  }, [filters, pagination.current])
+  }, [filters.title, filters.author, filters.available, pagination.current])
 
   const fetchBooks = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       
-      if (filters.title) params.append('title', filters.title)
-      if (filters.author) params.append('author', filters.author)
-      if (filters.available) params.append('available', 'true')
+      // Use unified search if we have a search term
+      if (filters.title && filters.title.trim()) {
+        params.append('search', filters.title.trim())
+      }
       
-      const response = await api.get(`/available-books/?${params.toString()}&page=${pagination.current}`)
+      // Only show available books
+      if (filters.available) {
+        params.append('available', 'true')
+      }
+      
+      params.append('page', pagination.current)
+      
+      const response = await api.get(`/available-books/?${params.toString()}`)
       const data = response.data.results || response.data
       setBooks(Array.isArray(data) ? data : [])
       
@@ -45,6 +53,7 @@ export default function Books() {
       }
     } catch (error) {
       console.error('Error fetching books:', error)
+      setBooks([])
     } finally {
       setLoading(false)
     }
@@ -52,25 +61,45 @@ export default function Books() {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    setPagination(prev => ({ ...prev, current: 1 })) // Reset to page 1 on new search
+    const trimmedTerm = searchTerm.trim()
+    
+    if (!trimmedTerm) {
+      // Clear search if empty - reset filters and reload all books
+      setFilters({
+        title: '',
+        author: '',
+        available: true
+      })
+      setPagination(prev => ({ ...prev, current: 1 }))
+      return
+    }
+    
+    // Reset to page 1 on new search and update filters
+    setPagination(prev => ({ ...prev, current: 1 }))
     setFilters({
-      ...filters,
-      title: searchTerm,
-      author: searchTerm
+      title: trimmedTerm, // This will be used as the 'search' parameter
+      author: '',
+      available: true
     })
   }
 
-  // Remove client-side filtering since we're doing server-side filtering
-  // Only filter if searchTerm is set but filters haven't been applied yet
-  const filteredBooks = books.filter(book => {
-    if (!searchTerm || filters.title || filters.author) return true
-    const term = searchTerm.toLowerCase()
-    return (
-      book.title?.toLowerCase().includes(term) ||
-      book.author?.toLowerCase().includes(term) ||
-      book.isbn?.toLowerCase().includes(term)
-    )
-  })
+  // Clear search when searchTerm is cleared via input
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchTerm(value)
+    // If user clears the input, clear the search immediately
+    if (!value.trim()) {
+      setFilters({
+        title: '',
+        author: '',
+        available: true
+      })
+      setPagination(prev => ({ ...prev, current: 1 }))
+    }
+  }
+
+  // Use books directly from API response (already filtered server-side)
+  const filteredBooks = books
 
   return (
     <div className="space-y-6">
@@ -88,7 +117,7 @@ export default function Books() {
               className="input-field pl-10"
               placeholder="Search by title, author, or ISBN..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
           <button type="submit" className="btn-primary">

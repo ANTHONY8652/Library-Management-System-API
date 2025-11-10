@@ -49,7 +49,7 @@ api.interceptors.request.use(
 // Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
-  async   (error) => {
+  async (error) => {
     const originalRequest = error.config
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -68,10 +68,18 @@ api.interceptors.response.use(
           return api(originalRequest)
         }
       } catch (refreshError) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
+        // Only redirect to login if user was authenticated and trying to access protected resource
+        // Don't redirect for public endpoints accessed by anonymous users
+        const user = localStorage.getItem('user')
+        if (user && !originalRequest.url?.includes('/available-books/') && !originalRequest.url?.includes('/books/')) {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('user')
+          // Only redirect if not already on login/register/home page
+          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register') && window.location.pathname !== '/') {
+            window.location.href = '/login'
+          }
+        }
         return Promise.reject(refreshError)
       }
     }

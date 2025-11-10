@@ -217,10 +217,22 @@ class BookFilter(filters.FilterSet):
     title = filters.CharFilter(field_name='title', lookup_expr='icontains')
     author = filters.CharFilter(field_name='author', lookup_expr='icontains')
     isbn = filters.CharFilter(field_name='isbn', lookup_expr='icontains')
+    search = filters.CharFilter(method='filter_search', label='Search')
     available = filters.BooleanFilter(field_name='copies_available', lookup_expr='gt', method='filter_available')
     published_after = filters.DateFilter(field_name='published_date', lookup_expr='gte')
     published_before = filters.DateFilter(field_name='published_date', lookup_expr='lte')
     year_published = filters.NumberFilter(field_name='published_date', lookup_expr='year')
+
+    def filter_search(self, queryset, name, value):
+        """Unified search across title, author, and ISBN"""
+        if not value:
+            return queryset
+        from django.db.models import Q
+        return queryset.filter(
+            Q(title__icontains=value) |
+            Q(author__icontains=value) |
+            Q(isbn__icontains=value)
+        )
 
     def filter_available(self, queryset, name, value):
         try:
@@ -233,7 +245,7 @@ class BookFilter(filters.FilterSet):
 
     class Meta:
         model = Book
-        fields = ['title', 'author', 'isbn', 'available', 'published_after', 'published_before', 'year_published']
+        fields = ['title', 'author', 'isbn', 'search', 'available', 'published_after', 'published_before', 'year_published']
 
 class AvailableBooksView(generics.ListAPIView):
     serializer_class = BookSerializer

@@ -21,16 +21,9 @@ class IsMemberUser(BasePermission):
 
 class CanViewBook(BasePermission):
     def has_permission(self, request, view):
-        # Allow read operations (GET, HEAD, OPTIONS) for authenticated users
+        # Allow read operations (GET, HEAD, OPTIONS) for everyone (anonymous users included)
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            if request.user.is_authenticated:
-                # Check if user has a profile (should always exist due to signal)
-                try:
-                    return request.user.userprofile.role in ['admin', 'member']
-                except:
-                    # If profile doesn't exist, still allow read (will be created)
-                    return True
-            return False  # Require authentication for viewing
+            return True  # Allow anonymous users to view books
         
         # For write operations (POST, PUT, PATCH, DELETE), require authentication and proper role
         if request.user.is_authenticated:

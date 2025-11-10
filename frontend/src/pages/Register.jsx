@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { BookOpen, UserPlus } from 'lucide-react'
 
@@ -14,6 +14,8 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || '/dashboard'
 
   const handleChange = (e) => {
     setFormData({
@@ -41,7 +43,8 @@ export default function Register() {
     const result = await register(formData.username, formData.email, formData.password)
     
     if (result.success) {
-      navigate('/dashboard')
+      // Redirect to the return URL or dashboard
+      navigate(returnTo)
     } else {
       setError(typeof result.error === 'string' ? result.error : 'Registration failed. Please try again.')
     }
@@ -158,7 +161,10 @@ export default function Register() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{' '}
-                <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link 
+                  to={returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login'} 
+                  className="font-medium text-primary-600 hover:text-primary-500"
+                >
                   Sign in
                 </Link>
               </p>

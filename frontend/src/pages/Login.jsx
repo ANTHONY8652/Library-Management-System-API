@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { BookOpen, LogIn } from 'lucide-react'
 
@@ -10,6 +10,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || '/dashboard'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -19,7 +21,8 @@ export default function Login() {
     const result = await login(username, password)
     
     if (result.success) {
-      navigate('/dashboard')
+      // Redirect to the return URL or dashboard
+      navigate(returnTo)
     } else {
       setError(result.error)
     }
@@ -104,7 +107,10 @@ export default function Login() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
-                <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link 
+                  to={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : '/register'} 
+                  className="font-medium text-primary-600 hover:text-primary-500"
+                >
                   Sign up
                 </Link>
               </p>

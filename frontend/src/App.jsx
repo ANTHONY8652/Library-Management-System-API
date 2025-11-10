@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Books from './pages/Books'
 import BookDetail from './pages/BookDetail'
@@ -42,12 +43,12 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-      <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
       <Route path="/dashboard" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
-      <Route path="/books" element={<PrivateRoute><Layout><Books /></Layout></PrivateRoute>} />
-      <Route path="/books/:id" element={<PrivateRoute><Layout><BookDetail /></Layout></PrivateRoute>} />
+      <Route path="/books" element={<Layout><Books /></Layout>} />
+      <Route path="/books/:id" element={<Layout><BookDetail /></Layout>} />
       <Route path="/my-books" element={<PrivateRoute><Layout><MyBooks /></Layout></PrivateRoute>} />
       <Route path="/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
       <Route path="/history" element={<PrivateRoute><Layout><TransactionHistory /></Layout></PrivateRoute>} />
