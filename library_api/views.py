@@ -376,7 +376,19 @@ class PasswordResetRequestView(generics.GenericAPIView):
             except serializers.ValidationError as e:
                 # This is raised from the serializer with detailed error
                 logger.error(f'Password reset validation error: {str(e)}')
-                error_message = str(e.detail) if hasattr(e, 'detail') else str(e)
+                # Extract error message from ValidationError
+                if hasattr(e, 'detail'):
+                    if isinstance(e.detail, dict):
+                        # Get first error message from dict
+                        error_message = list(e.detail.values())[0]
+                        if isinstance(error_message, list):
+                            error_message = error_message[0]
+                    else:
+                        error_message = str(e.detail)
+                else:
+                    error_message = str(e)
+                
+                logger.error(f'Returning error to client: {error_message}')
                 return Response({
                     'error': error_message,
                     'success': False

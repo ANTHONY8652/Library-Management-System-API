@@ -215,11 +215,23 @@ This link will expire in 24 hours.
 Best regards,
 Library Management System Team
 '''
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@library.com')
+        # Get email configuration
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
+        
+        # Validate email configuration
+        if not from_email:
+            logger.error('DEFAULT_FROM_EMAIL is not set in settings')
+            raise serializers.ValidationError('Email configuration error: DEFAULT_FROM_EMAIL is not set.')
+        
+        if 'smtp' in email_backend.lower() and not email_host_user:
+            logger.error('SMTP backend requires EMAIL_HOST_USER to be set')
+            raise serializers.ValidationError('Email configuration error: EMAIL_HOST_USER is required for SMTP.')
         
         # Log email details for debugging
-        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
         logger.info(f'Attempting to send password reset email to {email} using backend: {email_backend}')
+        logger.info(f'From email: {from_email}')
         logger.info(f'Reset URL: {reset_url}')
         
         try:
@@ -237,13 +249,24 @@ Library Management System Team
         except Exception as e:
             # Log detailed error for debugging
             import traceback
-            logger.error(f'Error sending password reset email to {email}: {str(e)}')
+            error_msg = str(e)
+            logger.error(f'Error sending password reset email to {email}: {error_msg}')
             logger.error(f'Traceback: {traceback.format_exc()}')
-            # In development, include more details
-            if settings.DEBUG:
-                raise serializers.ValidationError(f'Error sending email: {str(e)}. Check server logs for details.')
+            logger.error(f'Email backend: {email_backend}')
+            logger.error(f'From email: {from_email}')
+            logger.error(f'EMAIL_HOST_USER set: {bool(email_host_user)}')
+            
+            # Provide helpful error message
+            if 'authentication failed' in error_msg.lower() or 'invalid credentials' in error_msg.lower():
+                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD.'
+            elif 'connection' in error_msg.lower() or 'timeout' in error_msg.lower():
+                error_message = 'Unable to connect to email server. Please check EMAIL_HOST and EMAIL_PORT.'
+            elif settings.DEBUG:
+                error_message = f'Error sending email: {error_msg}. Check server logs for details.'
             else:
-                raise serializers.ValidationError('Error sending email. Please try again later.')
+                error_message = 'Error sending email. Please try again later.'
+            
+            raise serializers.ValidationError(error_message)
         
         # Return success with email_exists flag
         return {'email_exists': True, 'user': user}
