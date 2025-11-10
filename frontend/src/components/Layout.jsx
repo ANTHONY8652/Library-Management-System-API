@@ -31,10 +31,10 @@ export default function Layout({ children }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
+              <Link to="/dashboard" className="flex-shrink-0 flex items-center cursor-pointer hover:opacity-80 transition-opacity">
                 <BookOpen className="h-8 w-8 text-primary-600" />
                 <span className="ml-2 text-xl font-bold text-gray-900">Library</span>
-              </div>
+              </Link>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 {navItems.map((item) => {
                   const Icon = item.icon
