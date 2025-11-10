@@ -11,8 +11,9 @@ const getApiBaseUrl = () => {
     return url.endsWith('/api') ? url : `${url}/api`
   }
   
-  // Production: use custom domain API
-  if (import.meta.env.PROD) {
+  // Check if we're in production (Vercel deployment)
+  // In production, use custom domain API
+  if (import.meta.env.MODE === 'production' || window.location.hostname !== 'localhost') {
     return 'https://api.librarymanagementsystem.store/api'
   }
   
@@ -27,6 +28,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
 })
 
 // Request interceptor to add auth token to all requests
@@ -39,6 +41,7 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
+    console.error('Request error:', error)
     return Promise.reject(error)
   }
 )
@@ -46,7 +49,7 @@ api.interceptors.request.use(
 // Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  async   (error) => {
     const originalRequest = error.config
 
     if (error.response?.status === 401 && !originalRequest._retry) {

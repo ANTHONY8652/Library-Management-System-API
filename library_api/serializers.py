@@ -84,18 +84,21 @@ class TransactionSerializer(serializers.ModelSerializer):
         return_date = attrs.get('return_date')
         due_date = attrs.get('due_date')
 
-        # Handle both 'book' and 'book_id' for backward compatibility
-        book = attrs.get('book')
-        if not book:
-            raise serializers.ValidationError('Book is required')
-        
-        # Checkout date is required, but can be set in view if not provided
-        # User is set automatically in perform_create, so don't require it here
-        
-        # Only validate return_date and due_date if they're provided (for returns/updates)
-        # During checkout, these are optional (return_date should be None, due_date auto-calculated)
-        if book.copies_available == 0:
-            raise serializers.ValidationError('No copies available for checkout')
+        # For partial updates (PATCH), we might not have all fields
+        # Only validate book if:
+        # 1. This is a new transaction (no instance) - book is required for checkout
+        # 2. Book is explicitly being updated (in attrs)
+        # For return operations, we only update return_date, so book validation is skipped
+        if not self.instance:  # New transaction (checkout)
+            if not book:
+                raise serializers.ValidationError('Book is required')
+            # Only check availability for new checkouts
+            if book.copies_available == 0:
+                raise serializers.ValidationError('No copies available for checkout')
+        elif book:  # Existing transaction, but book is being updated
+            # If book is being changed, validate availability
+            if book.copies_available == 0:
+                raise serializers.ValidationError('No copies available for checkout')
         
         return attrs
     
