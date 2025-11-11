@@ -160,17 +160,29 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    email = serializers.CharField(required=True, allow_blank=False)
 
     def validate_email(self, value):
         # Normalize email by trimming whitespace
         if not value:
             raise serializers.ValidationError('Email is required')
+        
         value = value.strip()
-        # Validate email format
-        if '@' not in value or '.' not in value.split('@')[1] if '@' in value else '':
-            raise serializers.ValidationError('Invalid email format')
-        return value
+        
+        # Basic email format validation (more lenient than EmailField)
+        if not value or '@' not in value:
+            raise serializers.ValidationError('Please enter a valid email address')
+        
+        parts = value.split('@')
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise serializers.ValidationError('Please enter a valid email address')
+        
+        domain = parts[1]
+        if '.' not in domain or len(domain.split('.')) < 2:
+            raise serializers.ValidationError('Please enter a valid email address')
+        
+        # Return normalized email (lowercase for consistency)
+        return value.lower()
 
     def save(self):
         email = self.validated_data['email']

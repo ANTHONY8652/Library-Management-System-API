@@ -345,24 +345,73 @@ class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        logger.info(f'Password reset request received for email: {request.data.get("email", "NOT PROVIDED")}')
-        serializer = self.get_serializer(data=request.data)
+        # Log request data for debugging
+        email_from_request = request.data.get("email", None)
+        logger.info(f'Password reset request received')
+        logger.info(f'Request data: {request.data}')
+        logger.info(f'Email value: {email_from_request}')
+        logger.info(f'Email type: {type(email_from_request)}')
+        
+        # Ensure email is a string
+        request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        if 'email' in request_data:
+            if request_data['email'] is None:
+                request_data['email'] = ''
+            else:
+                request_data['email'] = str(request_data['email']).strip()
+        
+        serializer = self.get_serializer(data=request_data)
         
         if not serializer.is_valid():
             logger.error(f'Password reset serializer validation failed: {serializer.errors}')
-            # Extract first error message
-            error_message = 'Invalid request. Please check your input.'
+            # Extract first error message from ValidationError
+            error_message = 'Invalid email address. Please check your input.'
             if serializer.errors:
-                first_error = list(serializer.errors.values())[0]
-                if isinstance(first_error, list) and first_error:
-                    error_message = first_error[0]
+                # Check for email field errors first
+                if 'email' in serializer.errors:
+                    email_errors = serializer.errors['email']
+                    if isinstance(email_errors, list) and email_errors:
+                        # Extract the actual error message from ErrorDetail
+                        error_detail = email_errors[0]
+                        # Extract error message from ErrorDetail object
+                        if hasattr(error_detail, 'string'):
+                            error_message = error_detail.string
+                        elif hasattr(error_detail, '__str__'):
+                            error_message = str(error_detail)
+                            # Clean up ErrorDetail format: "ErrorDetail(string='message', code='invalid')" -> "message"
+                            if 'ErrorDetail' in error_message and 'string=' in error_message:
+                                import re
+                                match = re.search(r"string='([^']+)'", error_message)
+                                if match:
+                                    error_message = match.group(1)
+                        else:
+                            error_message = str(email_errors[0])
+                    else:
+                        error_message = str(email_errors)
                 else:
-                    error_message = str(first_error)
+                    # Get first error from any field
+                    first_error = list(serializer.errors.values())[0]
+                    if isinstance(first_error, list) and first_error:
+                        error_detail = first_error[0]
+                        # Extract error message from ErrorDetail object
+                        if hasattr(error_detail, 'string'):
+                            error_message = error_detail.string
+                        elif hasattr(error_detail, '__str__'):
+                            error_message = str(error_detail)
+                            # Clean up ErrorDetail format
+                            if 'ErrorDetail' in error_message and 'string=' in error_message:
+                                import re
+                                match = re.search(r"string='([^']+)'", error_message)
+                                if match:
+                                    error_message = match.group(1)
+                        else:
+                            error_message = str(error_detail)
+                    else:
+                        error_message = str(first_error)
             
             return Response({
                 'error': error_message,
-                'success': False,
-                'errors': serializer.errors
+                'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Serializer is valid, try to save (send email)
