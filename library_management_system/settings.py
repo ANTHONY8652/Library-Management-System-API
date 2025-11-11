@@ -159,23 +159,36 @@ WSGI_APPLICATION = 'library_management_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("DB_NAME", ""),
-        'USER': os.getenv("DB_USER", ""),
-        'PASSWORD': os.getenv("DB_PASSWORD", ""),
-        'HOST': os.getenv("DB_HOST", "localhost"),
-        'PORT': os.getenv("DB_PORT", "5432"),
-        'OPTIONS': {
-            'connect_timeout': 10,
-        },
-        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
-    }
+USE_SQLITE = os.getenv("USE_SQLITE", "").lower() in ("true", "1", "yes")
+
+postgres_config = {
+    'ENGINE': 'django.db.backends.postgresql',
+    'NAME': os.getenv("DB_NAME", ""),
+    'USER': os.getenv("DB_USER", ""),
+    'PASSWORD': os.getenv("DB_PASSWORD", ""),
+    'HOST': os.getenv("DB_HOST", "localhost"),
+    'PORT': os.getenv("DB_PORT", "5432"),
+    'OPTIONS': {
+        'connect_timeout': 10,
+    },
+    'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
 }
 
-# Validate database configuration in production
-if not DEBUG:
+DATABASES = {
+    'default': postgres_config
+}
+
+using_postgres = not USE_SQLITE
+
+if USE_SQLITE or not postgres_config['NAME']:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+    using_postgres = False
+
+# Validate database configuration in production (only for PostgreSQL)
+if using_postgres and not DEBUG:
     db_config = DATABASES['default']
     missing_vars = []
     if not db_config['NAME']:
