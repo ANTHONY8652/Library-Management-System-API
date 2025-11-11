@@ -17,9 +17,22 @@ export default function ForgotPassword() {
     setError('')
     setSuccess('')
     setShowSignupPrompt(false)
+    
+    // Validate email on client side before sending
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) {
+      setError('Please enter your email address')
+      return
+    }
+    
+    if (!trimmedEmail.includes('@')) {
+      setError('Please enter a valid email address')
+      return
+    }
+    
     setLoading(true)
 
-    const result = await requestPasswordReset(email)
+    const result = await requestPasswordReset(trimmedEmail)
     
     if (result.success) {
       // Check if email doesn't exist

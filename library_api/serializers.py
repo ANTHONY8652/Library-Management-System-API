@@ -160,29 +160,63 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.CharField(required=True, allow_blank=False)
+    email = serializers.CharField(required=True, allow_blank=True)
 
     def validate_email(self, value):
-        # Normalize email by trimming whitespace
-        if not value:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Log the incoming value for debugging
+        logger.info(f'validate_email called with value: {value}, type: {type(value)}')
+        
+        # Handle None, empty string, or non-string types
+        if value is None:
+            logger.warning('Email validation received None value')
             raise serializers.ValidationError('Email is required')
         
+        # Convert to string if not already
+        if not isinstance(value, str):
+            value = str(value)
+            logger.info(f'Converted email to string: {value}')
+        
+        # Trim whitespace
         value = value.strip()
         
-        # Basic email format validation (more lenient than EmailField)
-        if not value or '@' not in value:
+        # Check if empty after trimming
+        if not value:
+            logger.warning('Email validation received empty value')
+            raise serializers.ValidationError('Email is required')
+        
+        # Basic email format validation (lenient)
+        if '@' not in value:
+            logger.warning(f'Email validation failed: no @ symbol in {value}')
             raise serializers.ValidationError('Please enter a valid email address')
         
         parts = value.split('@')
-        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+        if len(parts) != 2:
+            logger.warning(f'Email validation failed: invalid @ usage in {value}')
             raise serializers.ValidationError('Please enter a valid email address')
         
-        domain = parts[1]
-        if '.' not in domain or len(domain.split('.')) < 2:
+        local_part = parts[0].strip()
+        domain_part = parts[1].strip()
+        
+        if not local_part:
+            logger.warning(f'Email validation failed: empty local part in {value}')
+            raise serializers.ValidationError('Please enter a valid email address')
+        
+        if not domain_part:
+            logger.warning(f'Email validation failed: empty domain part in {value}')
+            raise serializers.ValidationError('Please enter a valid email address')
+        
+        # Check domain has at least one dot (e.g., example.com)
+        if '.' not in domain_part:
+            logger.warning(f'Email validation failed: domain has no dot in {value}')
             raise serializers.ValidationError('Please enter a valid email address')
         
         # Return normalized email (lowercase for consistency)
-        return value.lower()
+        normalized = value.lower()
+        logger.info(f'Email validation passed: {value} -> {normalized}')
+        return normalized
 
     def save(self):
         email = self.validated_data['email']

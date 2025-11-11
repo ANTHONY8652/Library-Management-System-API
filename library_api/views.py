@@ -352,14 +352,31 @@ class PasswordResetRequestView(generics.GenericAPIView):
         logger.info(f'Email value: {email_from_request}')
         logger.info(f'Email type: {type(email_from_request)}')
         
-        # Ensure email is a string
-        request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        if 'email' in request_data:
-            if request_data['email'] is None:
-                request_data['email'] = ''
-            else:
-                request_data['email'] = str(request_data['email']).strip()
+        # Prepare request data - ensure email is properly formatted
+        if hasattr(request.data, 'copy'):
+            request_data = request.data.copy()
+        elif isinstance(request.data, dict):
+            request_data = dict(request.data)
+        else:
+            # For other types (QueryDict, etc.), convert to dict
+            request_data = {'email': request.data.get('email', '')}
         
+        # Normalize email field
+        if 'email' in request_data:
+            email_val = request_data['email']
+            if email_val is None:
+                logger.warning('Email is None in request data')
+                request_data['email'] = ''
+            elif not isinstance(email_val, str):
+                logger.info(f'Converting email from {type(email_val)} to string')
+                request_data['email'] = str(email_val).strip()
+            else:
+                request_data['email'] = email_val.strip()
+        else:
+            logger.warning('Email field not found in request data')
+            request_data['email'] = ''
+        
+        logger.info(f'Normalized request data: {request_data}')
         serializer = self.get_serializer(data=request_data)
         
         if not serializer.is_valid():
