@@ -38,19 +38,44 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    console.log('📤 API Request:', config.method?.toUpperCase(), config.url, {
+      baseURL: config.baseURL,
+      data: config.data
+    })
     return config
   },
   (error) => {
-    console.error('Request error:', error)
+    console.error('❌ Request interceptor error:', error)
     return Promise.reject(error)
   }
 )
 
 // Response interceptor for token refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API Response:', response.config.method?.toUpperCase(), response.config.url, response.status)
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
+
+    // Log all errors for debugging
+    if (!error.response) {
+      console.error('❌ Network Error - No response from server:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        message: error.message,
+        code: error.code
+      })
+    } else {
+      console.error('❌ API Error Response:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response.status,
+        data: error.response.data
+      })
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
