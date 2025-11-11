@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Book, UserProfile, Transaction
+from .models import Book, UserProfile, Transaction, PasswordResetCode
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
@@ -158,6 +158,183 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return token
 
+
+# ============================================
+# NEW OTP-BASED PASSWORD RESET (SIMPLER APPROACH)
+# ============================================
+
+class PasswordResetOTPRequestSerializer(serializers.Serializer):
+    """Request OTP code for password reset - much simpler approach"""
+    email = serializers.CharField()
+    
+    def validate_email(self, value):
+        """Basic email validation"""
+        if not value or not isinstance(value, str):
+            raise serializers.ValidationError('Email is required')
+        value = value.strip().lower()
+        if '@' not in value:
+            raise serializers.ValidationError('Please enter a valid email address')
+        parts = value.split('@')
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise serializers.ValidationError('Please enter a valid email address')
+        return value
+    
+    def save(self):
+        """Generate and send OTP code"""
+        from django.utils import timezone
+        from datetime import timedelta
+        import random
+        import logging
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        logger = logging.getLogger(__name__)
+        email = self.validated_data['email']
+        
+        # Find user by email
+        try:
+            user = User.objects.filter(email__iexact=email).first()
+        except Exception as e:
+            logger.error(f'Error looking up user: {str(e)}')
+            return {'email_exists': False}
+        
+        if not user or not user.email:
+            logger.info(f'Password reset requested for non-existent email: {email}')
+            return {'email_exists': False}
+        
+        # Generate 6-digit code
+        code = str(random.randint(100000, 999999))
+        
+        # Set expiration (15 minutes)
+        expires_at = timezone.now() + timedelta(minutes=15)
+        
+        # Invalidate any existing codes for this user
+        PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
+        
+        # Create new code
+        reset_code = PasswordResetCode.objects.create(
+            user=user,
+            code=code,
+            email=email,
+            expires_at=expires_at
+        )
+        
+        # Send email
+        subject = 'Password Reset Code - Library Management System'
+        message = f'''Hello {user.username},
+
+You requested a password reset for your account. Your verification code is:
+
+{code}
+
+This code will expire in 15 minutes.
+
+If you did not request this password reset, please ignore this email.
+
+Best regards,
+Library Management System Team
+'''
+        
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@library.com')
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                from_email,
+                [email],
+                fail_silently=False,
+            )
+            logger.info(f'OTP code {code} sent to {email}')
+            return {'email_exists': True, 'code_sent': True}
+        except Exception as e:
+            logger.error(f'Error sending OTP email: {str(e)}')
+            # Delete the code if email failed
+            reset_code.delete()
+            raise serializers.ValidationError({'email': [f'Error sending email: {str(e)}']})
+
+
+class PasswordResetOTPVerifySerializer(serializers.Serializer):
+    """Verify OTP code and reset password"""
+    email = serializers.CharField()
+    code = serializers.CharField(max_length=6, min_length=6)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password_confirm = serializers.CharField(write_only=True, min_length=8)
+    
+    def validate_email(self, value):
+        """Normalize email"""
+        if not value:
+            raise serializers.ValidationError('Email is required')
+        return value.strip().lower()
+    
+    def validate_code(self, value):
+        """Validate code format"""
+        if not value or len(value) != 6 or not value.isdigit():
+            raise serializers.ValidationError('Code must be a 6-digit number')
+        return value
+    
+    def validate(self, attrs):
+        """Validate passwords match"""
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match'})
+        return attrs
+    
+    def save(self):
+        """Verify code and reset password"""
+        from django.utils import timezone
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        email = self.validated_data['email']
+        code = self.validated_data['code']
+        new_password = self.validated_data['new_password']
+        
+        # Find user
+        try:
+            user = User.objects.filter(email__iexact=email).first()
+        except Exception as e:
+            logger.error(f'Error looking up user: {str(e)}')
+            raise serializers.ValidationError({'code': ['Invalid code or email']})
+        
+        if not user:
+            raise serializers.ValidationError({'code': ['Invalid code or email']})
+        
+        # Find valid code
+        try:
+            reset_code = PasswordResetCode.objects.filter(
+                user=user,
+                email__iexact=email,
+                code=code,
+                used=False
+            ).first()
+        except Exception as e:
+            logger.error(f'Error looking up code: {str(e)}')
+            raise serializers.ValidationError({'code': ['Invalid code']})
+        
+        if not reset_code:
+            logger.warning(f'Invalid code {code} attempted for {email}')
+            raise serializers.ValidationError({'code': ['Invalid or expired code']})
+        
+        # Check if code is valid
+        if not reset_code.is_valid():
+            logger.warning(f'Expired code {code} attempted for {email}')
+            raise serializers.ValidationError({'code': ['Code has expired. Please request a new one.']})
+        
+        # Set password
+        user.set_password(new_password)
+        user.save()
+        
+        # Mark code as used
+        reset_code.used = True
+        reset_code.save()
+        
+        logger.info(f'Password reset successful for {email}')
+        return {'success': True, 'message': 'Password has been reset successfully'}
+
+
+# ============================================
+# OLD TOKEN-BASED PASSWORD RESET (KEEP FOR BACKWARD COMPATIBILITY)
+# ============================================
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     # Make email field very permissive - accept any string

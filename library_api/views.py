@@ -2,7 +2,7 @@ from rest_framework import filters, permissions, generics, serializers, status
 from rest_framework.views import APIView
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
-from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
+from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordResetOTPRequestSerializer, PasswordResetOTPVerifySerializer
 from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember
 from django.shortcuts import render
 from rest_framework.reverse import reverse
@@ -575,3 +575,105 @@ class PasswordResetConfirmView(generics.GenericAPIView):
                     'success': False
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================
+# NEW OTP-BASED PASSWORD RESET VIEWS (SIMPLER APPROACH)
+# ============================================
+
+class PasswordResetOTPRequestView(generics.GenericAPIView):
+    """Request OTP code for password reset - simpler approach"""
+    serializer_class = PasswordResetOTPRequestSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'error': 'Invalid email address.',
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            result = serializer.save()
+            
+            if isinstance(result, dict) and result.get('email_exists') == False:
+                return Response({
+                    'message': 'No account found with this email address.',
+                    'email_exists': False,
+                    'suggest_signup': True,
+                    'success': True
+                }, status=status.HTTP_200_OK)
+            
+            return Response({
+                'message': 'A 6-digit verification code has been sent to your email address. Please check your inbox.',
+                'email_exists': True,
+                'success': True
+            }, status=status.HTTP_200_OK)
+            
+        except serializers.ValidationError as e:
+            error_message = 'Error sending verification code. Please try again.'
+            if hasattr(e, 'detail') and isinstance(e.detail, dict):
+                if 'email' in e.detail:
+                    email_errors = e.detail['email']
+                    if isinstance(email_errors, list) and email_errors:
+                        error_message = email_errors[0]
+                    elif isinstance(email_errors, str):
+                        error_message = email_errors
+            
+            return Response({
+                'error': error_message,
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Password reset OTP request error: {str(e)}')
+            return Response({
+                'error': 'Error sending verification code. Please try again later.',
+                'success': False
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordResetOTPVerifyView(generics.GenericAPIView):
+    """Verify OTP code and reset password"""
+    serializer_class = PasswordResetOTPVerifySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'error': 'Invalid input. Please check your code and password.',
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            result = serializer.save()
+            logger.info(f'Password reset successful via OTP')
+            return Response({
+                'message': 'Password has been reset successfully. You can now login with your new password.',
+                'success': True
+            }, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            error_message = 'Invalid or expired code. Please request a new code.'
+            if hasattr(e, 'detail') and isinstance(e.detail, dict):
+                if 'code' in e.detail:
+                    code_errors = e.detail['code']
+                    if isinstance(code_errors, list) and code_errors:
+                        error_message = code_errors[0]
+                    elif isinstance(code_errors, str):
+                        error_message = code_errors
+            
+            return Response({
+                'error': error_message,
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Password reset OTP verify error: {str(e)}')
+            return Response({
+                'error': 'Error resetting password. Please try again.',
+                'success': False
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

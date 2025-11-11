@@ -147,3 +147,26 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} checked out {self.book.title}"
+
+class PasswordResetCode(models.Model):
+    """Model to store OTP codes for password reset"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['code', 'email', 'used']),
+        ]
+    
+    def is_valid(self):
+        """Check if code is still valid (not used and not expired)"""
+        from django.utils import timezone
+        return not self.used and timezone.now() < self.expires_at
+    
+    def __str__(self):
+        return f"Code {self.code} for {self.email} (expires: {self.expires_at})"

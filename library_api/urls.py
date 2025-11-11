@@ -2,7 +2,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import  (
-    home, profile_view, OverdueBooksView, MyBooksView, TransactionHistoryView, CurrentUserProfileView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView, PasswordResetRequestView, PasswordResetConfirmView
+    home, profile_view, OverdueBooksView, MyBooksView, TransactionHistoryView, CurrentUserProfileView, BookListCreateView, BookDetailView, UserProfileDetailView, UserProfileListCreateView, ReturnBookview, AvailableBooksView, CheckOutBookView, UserRegistrationView, UserLoginView, UserLogoutView, MyTokenObtainPairView, PasswordResetRequestView, PasswordResetConfirmView, PasswordResetOTPRequestView, PasswordResetOTPVerifyView
  )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -18,6 +18,10 @@ urlpatterns = [
     path('home/', home, name='home'),
     path('books/', BookListCreateView.as_view(), name='book-list-create'),
     path('books/<int:pk>/', BookDetailView.as_view(), name='book-detail'),
+    # OTP-based password reset (NEW - SIMPLER APPROACH)
+    path('password-reset-otp/', PasswordResetOTPRequestView.as_view(), name='password-reset-otp-request'),
+    path('password-reset-otp-verify/', PasswordResetOTPVerifyView.as_view(), name='password-reset-otp-verify'),
+    # Old token-based password reset (keep for backward compatibility)
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('users/', UserProfileListCreateView.as_view(), name='user-list-create'),

@@ -120,16 +120,17 @@ export function AuthProvider({ children }) {
 
   const requestPasswordReset = async (email) => {
     try {
-      const response = await api.post('/password-reset/', { email })
+      // Use new OTP-based endpoint
+      const response = await api.post('/password-reset-otp/', { email })
       return {
         success: true,
-        message: response.data.message || 'Password reset link has been sent to your email.',
+        message: response.data.message || 'A 6-digit verification code has been sent to your email address.',
         email_exists: response.data.email_exists,
         suggest_signup: response.data.suggest_signup
       }
     } catch (error) {
       console.error('Password reset request error:', error.response?.data)
-      let errorMessage = 'Error sending password reset email. Please try again.'
+      let errorMessage = 'Error sending verification code. Please try again.'
       if (error.response?.data) {
         if (error.response.data.error) {
           errorMessage = Array.isArray(error.response.data.error) 
@@ -139,6 +140,41 @@ export function AuthProvider({ children }) {
           errorMessage = Array.isArray(error.response.data.email)
             ? error.response.data.email[0]
             : error.response.data.email
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+      return {
+        success: false,
+        error: errorMessage
+      }
+    }
+  }
+
+  const verifyOTPAndResetPassword = async (email, code, newPassword, newPasswordConfirm) => {
+    try {
+      const response = await api.post('/password-reset-otp-verify/', {
+        email,
+        code,
+        new_password: newPassword,
+        new_password_confirm: newPasswordConfirm
+      })
+      return {
+        success: true,
+        message: response.data.message || 'Password has been reset successfully.'
+      }
+    } catch (error) {
+      console.error('Password reset verify error:', error.response?.data)
+      let errorMessage = 'Error resetting password. Please try again.'
+      if (error.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = Array.isArray(error.response.data.error) 
+            ? error.response.data.error[0] 
+            : error.response.data.error
+        } else if (error.response.data.code) {
+          errorMessage = Array.isArray(error.response.data.code)
+            ? error.response.data.code[0]
+            : error.response.data.code
         } else if (error.response.data.message) {
           errorMessage = error.response.data.message
         }
@@ -200,7 +236,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, requestPasswordReset, resetPassword }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, requestPasswordReset, resetPassword, verifyOTPAndResetPassword }}>
       {children}
     </AuthContext.Provider>
   )

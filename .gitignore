@@ -197,11 +197,13 @@ celerybeat.pid
 .render/
 
 # ============================================
-# Documentation (keep only README.md)
+# Documentation (keep only README.md and guides)
 # ============================================
 *.md
 !README.md
 !frontend/README.md
+!PASSWORD_RESET_OTP_GUIDE.md
+!PASSWORD_RESET_LOGIC_AND_FLOW.md
 
 # ============================================
 # Project Specific
