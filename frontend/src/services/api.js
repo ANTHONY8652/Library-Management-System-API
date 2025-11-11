@@ -28,7 +28,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout (email sending can take time)
+  timeout: 60000, // 60 second timeout (email sending and database operations can take time)
 })
 
 // Request interceptor to add auth token to all requests

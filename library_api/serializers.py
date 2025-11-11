@@ -209,19 +209,34 @@ class PasswordResetOTPRequestSerializer(serializers.Serializer):
         expires_at = timezone.now() + timedelta(minutes=15)
         
         # Invalidate any existing codes for this user
-        # Use get_or_create pattern to handle case where table doesn't exist yet
+        # This will raise an exception immediately if the table doesn't exist
+        from django.db import OperationalError, ProgrammingError
+        
         try:
             PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
-        except Exception as db_error:
-            # If table doesn't exist, log and continue (migration needed)
+        except (OperationalError, ProgrammingError) as db_error:
+            # Database table doesn't exist or other database error
+            error_msg = str(db_error).lower()
             logger.error(f'Database error invalidating codes: {str(db_error)}')
-            if 'does not exist' in str(db_error) or 'relation' in str(db_error).lower():
+            if 'does not exist' in error_msg or 'relation' in error_msg or 'no such table' in error_msg:
                 raise serializers.ValidationError({
-                    'email': ['Database migration required. Please contact administrator.']
+                    'email': ['Database migration required. Please run migrations on the server.']
                 })
+            # Re-raise if it's a different database error
+            raise
+        except Exception as db_error:
+            # Catch any other unexpected errors
+            error_msg = str(db_error).lower()
+            if 'does not exist' in error_msg or 'relation' in error_msg or 'no such table' in error_msg:
+                logger.error(f'Database error (unexpected type): {str(db_error)}')
+                raise serializers.ValidationError({
+                    'email': ['Database migration required. Please run migrations on the server.']
+                })
+            # Re-raise if it's not a database error
             raise
         
         # Create new code
+        reset_code = None
         try:
             reset_code = PasswordResetCode.objects.create(
                 user=user,
@@ -229,13 +244,25 @@ class PasswordResetOTPRequestSerializer(serializers.Serializer):
                 email=email,
                 expires_at=expires_at
             )
-        except Exception as db_error:
-            # If table doesn't exist, log and raise clear error
+        except (OperationalError, ProgrammingError) as db_error:
+            # Database table doesn't exist or other database error
+            error_msg = str(db_error).lower()
             logger.error(f'Database error creating reset code: {str(db_error)}')
-            if 'does not exist' in str(db_error) or 'relation' in str(db_error).lower():
+            if 'does not exist' in error_msg or 'relation' in error_msg or 'no such table' in error_msg:
                 raise serializers.ValidationError({
                     'email': ['Database migration required. Please run migrations on the server.']
                 })
+            # Re-raise if it's a different database error
+            raise
+        except Exception as db_error:
+            # Catch any other unexpected errors
+            error_msg = str(db_error).lower()
+            if 'does not exist' in error_msg or 'relation' in error_msg or 'no such table' in error_msg:
+                logger.error(f'Database error creating code (unexpected type): {str(db_error)}')
+                raise serializers.ValidationError({
+                    'email': ['Database migration required. Please run migrations on the server.']
+                })
+            # Re-raise if it's not a database error
             raise
         
         # Send email
@@ -288,7 +315,11 @@ Library Management System Team
         if not settings.DEBUG and 'console' in email_backend.lower():
             error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production. Console backend cannot send real emails.'
             logger.error(error_msg)
-            reset_code.delete()
+            if reset_code:
+                try:
+                    reset_code.delete()
+                except Exception as delete_error:
+                    logger.warning(f'Error deleting reset code: {str(delete_error)}')
             raise serializers.ValidationError({'email': [error_msg]})
         
         # Check SMTP credentials if using SMTP
@@ -296,7 +327,11 @@ Library Management System Team
             if not email_host_user or not email_host_password:
                 error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are required for SMTP. Please set these environment variables.'
                 logger.error(error_msg)
-                reset_code.delete()
+                if reset_code:
+                    try:
+                        reset_code.delete()
+                    except Exception as delete_error:
+                        logger.warning(f'Error deleting reset code: {str(delete_error)}')
                 raise serializers.ValidationError({'email': [error_msg]})
         
         try:
@@ -363,7 +398,11 @@ Library Management System Team
                 error_message = 'Error sending email. Please check your email configuration and try again later.'
             
             # Delete the code if email failed
-            reset_code.delete()
+            if reset_code:
+                try:
+                    reset_code.delete()
+                except Exception as delete_error:
+                    logger.warning(f'Error deleting reset code after email failure: {str(delete_error)}')
             raise serializers.ValidationError({'email': [error_message]})
 
 

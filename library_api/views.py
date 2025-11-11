@@ -629,12 +629,25 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
                     elif isinstance(email_errors, str):
                         error_message = email_errors
             
+            logger.error(f'Password reset OTP ValidationError: {error_message}')
             return Response({
                 'error': error_message,
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f'Password reset OTP request error: {str(e)}')
+            import traceback
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.error(f'Password reset OTP request error: {error_type}: {error_msg}')
+            logger.error(f'Traceback: {traceback.format_exc()}')
+            
+            # Check if it's a database error
+            if 'database' in error_type.lower() or 'does not exist' in error_msg.lower() or 'relation' in error_msg.lower():
+                return Response({
+                    'error': 'Database migration required. Please contact administrator.',
+                    'success': False
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
             return Response({
                 'error': 'Error sending verification code. Please try again later.',
                 'success': False
