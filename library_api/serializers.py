@@ -139,7 +139,7 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({'error': 'Invalid username or password'})
         
         if not user.is_active:
-            raise serializers.validationError({'error': 'User accpunt is disabled'})
+            raise serializers.ValidationError({'error': 'User account is disabled'})
         
         refresh = RefreshToken.for_user(user)
         return {
@@ -545,6 +545,18 @@ Library Management System Team
         logger.info(f'  To: {email}')
         logger.info(f'  Reset URL: {reset_url}')
         
+        # Get timeout settings
+        email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
+        logger.info(f'  Timeout: {email_timeout} seconds')
+        
+        # Use connection with timeout to prevent hanging
+        from django.core.mail import get_connection
+        connection = get_connection(
+            fail_silently=False,
+            timeout=email_timeout,
+        )
+        logger.info(f'Connection created with {email_timeout}s timeout')
+        
         # Check if sending to self (same FROM and TO addresses)
         if from_email and email and from_email.lower().strip() == email.lower().strip():
             logger.info(f'  NOTE: Sending email to self (FROM={from_email}, TO={email})')
@@ -563,8 +575,9 @@ Library Management System Team
                 from_email,
                 [email],
                 fail_silently=False,
+                connection=connection,
             )
-            logger.info(f'Password reset email sent successfully to {email}. Result: {result}')
+            logger.info(f'✅ Password reset email sent successfully to {email}. Result: {result}')
             
             # In development with console backend, remind about console output
             if 'console' in email_backend.lower():

@@ -587,9 +587,14 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
+        logger.info('=== OTP PASSWORD RESET REQUEST ===')
+        logger.info(f'Request data: {request.data}')
+        logger.info(f'Endpoint: /password-reset-otp/')
+        
         serializer = self.get_serializer(data=request.data)
         
         if not serializer.is_valid():
+            logger.warning(f'OTP serializer validation failed: {serializer.errors}')
             return Response({
                 'error': 'Invalid email address.',
                 'success': False,
@@ -597,6 +602,7 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            logger.info('Calling OTP serializer.save()...')
             result = serializer.save()
             
             if isinstance(result, dict) and result.get('email_exists') == False:
