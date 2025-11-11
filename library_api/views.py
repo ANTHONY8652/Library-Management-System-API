@@ -351,41 +351,25 @@ class PasswordResetRequestView(generics.GenericAPIView):
         logger.info(f'Request data: {request.data}')
         logger.info(f'Request MIME type: {request.content_type}')
         
-        # Extract email directly from request - handle all possible formats
+        # Extract email directly from request.data (DRF already parsed the body)
+        # NOTE: Cannot read request.body after request.data has been accessed
         email_raw = None
         try:
-            # Try different ways to get the email
-            if hasattr(request.data, 'get'):
+            # request.data is already parsed by DRF, so use it directly
+            if isinstance(request.data, dict):
                 email_raw = request.data.get('email')
-            elif isinstance(request.data, dict):
+            elif hasattr(request.data, 'get'):
                 email_raw = request.data.get('email')
             elif isinstance(request.data, list) and len(request.data) > 0:
-                # Handle JSON array format
+                # Handle JSON array format (unlikely but handle it)
                 email_raw = request.data[0].get('email') if isinstance(request.data[0], dict) else None
             else:
-                # Try to get from request body directly
-                import json
-                try:
-                    body_data = json.loads(request.body)
-                    email_raw = body_data.get('email')
-                except:
-                    pass
+                # Try to access as attribute
+                email_raw = getattr(request.data, 'email', None)
             
-            logger.info(f'Extracted email: {repr(email_raw)}, type: {type(email_raw)}')
+            logger.info(f'Extracted email from request.data: {repr(email_raw)}, type: {type(email_raw)}')
+            logger.info(f'Full request.data: {request.data}')
             
-            # Also try to get raw request body for debugging
-            try:
-                import json
-                raw_body = request.body.decode('utf-8') if request.body else ''
-                logger.info(f'Raw request body: {repr(raw_body)}')
-                if raw_body:
-                    try:
-                        body_json = json.loads(raw_body)
-                        logger.info(f'Parsed JSON body: {body_json}')
-                    except:
-                        logger.info('Request body is not valid JSON')
-            except Exception as body_err:
-                logger.warning(f'Could not read request body: {str(body_err)}')
         except Exception as e:
             logger.error(f'Error extracting email from request: {str(e)}')
             logger.error(f'Request data type: {type(request.data)}')
