@@ -209,6 +209,159 @@ def run_migrations(request):
         }, status=500)
 run_migrations.permission_classes = [permissions.AllowAny]
 
+@api_view(['GET', 'POST'])
+def test_email_connection(request):
+    """Test email connection and configuration"""
+    from django.conf import settings
+    from django.core.mail import get_connection
+    import socket
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get email configuration
+    email_host = getattr(settings, 'EMAIL_HOST', 'NOT SET')
+    email_port = getattr(settings, 'EMAIL_PORT', 'NOT SET')
+    email_use_tls = getattr(settings, 'EMAIL_USE_TLS', False)
+    email_use_ssl = getattr(settings, 'EMAIL_USE_SSL', False)
+    email_host_user = getattr(settings, 'EMAIL_HOST_USER', 'NOT SET')
+    email_host_password = "SET" if getattr(settings, 'EMAIL_HOST_PASSWORD', '') else "NOT SET"
+    email_backend = getattr(settings, 'EMAIL_BACKEND', 'NOT SET')
+    email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
+    
+    config_info = {
+        'EMAIL_HOST': email_host,
+        'EMAIL_PORT': email_port,
+        'EMAIL_USE_TLS': email_use_tls,
+        'EMAIL_USE_SSL': email_use_ssl,
+        'EMAIL_HOST_USER': email_host_user,
+        'EMAIL_HOST_PASSWORD': email_host_password,
+        'EMAIL_BACKEND': email_backend,
+        'EMAIL_TIMEOUT': email_timeout,
+        'DEFAULT_FROM_EMAIL': getattr(settings, 'DEFAULT_FROM_EMAIL', 'NOT SET'),
+    }
+    
+    # Test 1: Socket connection test
+    socket_test = {
+        'success': False,
+        'message': '',
+        'error': None
+    }
+    
+    try:
+        logger.info(f'Testing socket connection to {email_host}:{email_port}')
+        sock = socket.create_connection((email_host, email_port), timeout=email_timeout)
+        sock.close()
+        socket_test['success'] = True
+        socket_test['message'] = f'Successfully connected to {email_host}:{email_port}'
+    except socket.timeout:
+        socket_test['error'] = f'Connection timeout to {email_host}:{email_port}'
+        socket_test['message'] = 'Timeout - port may be blocked by firewall'
+    except socket.gaierror as e:
+        socket_test['error'] = f'DNS resolution failed: {str(e)}'
+        socket_test['message'] = 'Cannot resolve hostname - check EMAIL_HOST'
+    except ConnectionRefusedError:
+        socket_test['error'] = 'Connection refused'
+        socket_test['message'] = 'Server refused connection - check port and host'
+    except OSError as e:
+        socket_test['error'] = f'Network error: {str(e)}'
+        socket_test['message'] = 'Network error - may be blocked by hosting provider'
+    except Exception as e:
+        socket_test['error'] = f'Unexpected error: {str(e)}'
+        socket_test['message'] = f'Unexpected error: {type(e).__name__}'
+    
+    # Test 2: SMTP connection test
+    smtp_test = {
+        'success': False,
+        'message': '',
+        'error': None
+    }
+    
+    if socket_test['success']:
+        try:
+            logger.info('Testing SMTP connection')
+            connection = get_connection(
+                fail_silently=False,
+                timeout=email_timeout,
+            )
+            connection.open()
+            connection.close()
+            smtp_test['success'] = True
+            smtp_test['message'] = 'SMTP connection successful'
+        except Exception as e:
+            smtp_test['error'] = str(e)
+            smtp_test['message'] = f'SMTP connection failed: {type(e).__name__}'
+            logger.error(f'SMTP test error: {str(e)}')
+    else:
+        smtp_test['message'] = 'Skipped - socket connection failed'
+    
+    # Test 3: Send test email (optional - only if POST)
+    send_test = {
+        'success': False,
+        'message': '',
+        'error': None
+    }
+    
+    if request.method == 'POST' and socket_test['success']:
+        test_email = request.data.get('email', email_host_user if email_host_user != 'NOT SET' else None)
+        if test_email:
+            try:
+                from django.core.mail import send_mail
+                logger.info(f'Sending test email to {test_email}')
+                result = send_mail(
+                    'Test Email - Library Management System',
+                    'This is a test email from the Library Management System.',
+                    getattr(settings, 'DEFAULT_FROM_EMAIL', email_host_user),
+                    [test_email],
+                    fail_silently=False,
+                )
+                send_test['success'] = True
+                send_test['message'] = f'Test email sent successfully to {test_email}'
+            except Exception as e:
+                send_test['error'] = str(e)
+                send_test['message'] = f'Failed to send test email: {type(e).__name__}'
+                logger.error(f'Test email error: {str(e)}')
+        else:
+            send_test['message'] = 'No email address provided for test'
+    
+    # Compile results
+    all_tests_passed = socket_test['success'] and (smtp_test['success'] if socket_test['success'] else True)
+    
+    response_data = {
+        'status': 'success' if all_tests_passed else 'error',
+        'configuration': config_info,
+        'tests': {
+            'socket_connection': socket_test,
+            'smtp_connection': smtp_test,
+            'send_email': send_test if request.method == 'POST' else {'message': 'Use POST with {"email": "test@example.com"} to test sending'}
+        },
+        'recommendations': []
+    }
+    
+    # Add recommendations based on test results
+    if not socket_test['success']:
+        if 'blocked' in socket_test['message'].lower() or 'refused' in socket_test['message'].lower():
+            response_data['recommendations'].append({
+                'issue': 'Port may be blocked by hosting provider',
+                'solution': 'Use an email service API (SendGrid, Mailgun, AWS SES) instead of direct SMTP'
+            })
+        if email_host == 'smtp.gmail.com':
+            response_data['recommendations'].append({
+                'issue': 'Gmail SMTP may be blocked',
+                'solution': 'Consider using SendGrid (free tier) or Mailgun (free tier) - see EMAIL_FIX_INSTRUCTIONS.md'
+            })
+    
+    if not smtp_test['success'] and socket_test['success']:
+        response_data['recommendations'].append({
+            'issue': 'SMTP authentication may be failing',
+            'solution': 'Check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use App Password.'
+        })
+    
+    status_code = 200 if all_tests_passed else 503
+    return Response(response_data, status=status_code)
+
+test_email_connection.permission_classes = [permissions.AllowAny]
+
 @api_view(['POST'])
 def create_admin_user(request):
     """Create superuser - requires authenticated superuser (SECURED)"""
@@ -311,6 +464,7 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
     path('migrate/', run_migrations, name='run-migrations'),
+    path('test-email/', test_email_connection, name='test-email-connection'),
     # Admin creation endpoint - SECURED: Only authenticated superusers can access
     # To completely disable, set ENABLE_CREATE_ADMIN_ENDPOINT=false in environment
     # path('create-admin/', create_admin_user, name='create-admin'),  # DISABLED

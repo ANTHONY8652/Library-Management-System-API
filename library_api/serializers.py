@@ -396,7 +396,7 @@ Library Management System Team
                 if port == 465:
                     error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
                 elif port == 587:
-                    error_message = f'Unable to connect to {host}:{port}. Check: 1) EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are correct, 2) For Gmail, use an App Password (get from https://myaccount.google.com/apppasswords), 3) Firewall allows port 587.'
+                    error_message = f'Unable to connect to {host}:{port}. This is often caused by hosting providers (like Render) blocking SMTP ports. SOLUTION: Use SendGrid or Mailgun instead of Gmail SMTP. Both offer free tiers and work reliably with Render. See: https://api.librarymanagementsystem.store/test-email/ for diagnostics, or check EMAIL_FIX_INSTRUCTIONS.md for setup guide.'
                 else:
                     error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'ssl' in error_lower or 'tls' in error_lower:
@@ -691,7 +691,7 @@ Library Management System Team
                 if port == 465:
                     error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
                 elif port == 587:
-                    error_message = f'Unable to connect to {host}:{port}. Check: 1) EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are correct, 2) For Gmail, use an App Password (get from https://myaccount.google.com/apppasswords), 3) Firewall allows port 587.'
+                    error_message = f'Unable to connect to {host}:{port}. This is often caused by hosting providers (like Render) blocking SMTP ports. SOLUTION: Use SendGrid or Mailgun instead of Gmail SMTP. Both offer free tiers and work reliably with Render. See: https://api.librarymanagementsystem.store/test-email/ for diagnostics, or check EMAIL_FIX_INSTRUCTIONS.md for setup guide.'
                 else:
                     error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'ssl' in error_lower or 'tls' in error_lower:
