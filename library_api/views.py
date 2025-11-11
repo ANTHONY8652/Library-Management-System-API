@@ -346,94 +346,84 @@ class PasswordResetRequestView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         # Log request data for debugging
-        email_from_request = request.data.get("email", None)
         logger.info(f'Password reset request received')
+        logger.info(f'Request data type: {type(request.data)}')
         logger.info(f'Request data: {request.data}')
-        logger.info(f'Email value: {email_from_request}')
-        logger.info(f'Email type: {type(email_from_request)}')
+        logger.info(f'Request MIME type: {request.content_type}')
         
-        # Prepare request data - ensure email is properly formatted
-        if hasattr(request.data, 'copy'):
-            request_data = request.data.copy()
-        elif isinstance(request.data, dict):
-            request_data = dict(request.data)
-        else:
-            # For other types (QueryDict, etc.), convert to dict
-            request_data = {'email': request.data.get('email', '')}
-        
-        # Normalize email field
-        if 'email' in request_data:
-            email_val = request_data['email']
-            if email_val is None:
-                logger.warning('Email is None in request data')
-                request_data['email'] = ''
-            elif not isinstance(email_val, str):
-                logger.info(f'Converting email from {type(email_val)} to string')
-                request_data['email'] = str(email_val).strip()
+        # Extract email directly from request - handle all possible formats
+        email_raw = None
+        try:
+            # Try different ways to get the email
+            if hasattr(request.data, 'get'):
+                email_raw = request.data.get('email')
+            elif isinstance(request.data, dict):
+                email_raw = request.data.get('email')
+            elif isinstance(request.data, list) and len(request.data) > 0:
+                # Handle JSON array format
+                email_raw = request.data[0].get('email') if isinstance(request.data[0], dict) else None
             else:
-                request_data['email'] = email_val.strip()
-        else:
-            logger.warning('Email field not found in request data')
-            request_data['email'] = ''
-        
-        logger.info(f'Normalized request data: {request_data}')
-        serializer = self.get_serializer(data=request_data)
-        
-        if not serializer.is_valid():
-            logger.error(f'Password reset serializer validation failed: {serializer.errors}')
-            # Extract first error message from ValidationError
-            error_message = 'Invalid email address. Please check your input.'
-            if serializer.errors:
-                # Check for email field errors first
-                if 'email' in serializer.errors:
-                    email_errors = serializer.errors['email']
-                    if isinstance(email_errors, list) and email_errors:
-                        # Extract the actual error message from ErrorDetail
-                        error_detail = email_errors[0]
-                        # Extract error message from ErrorDetail object
-                        if hasattr(error_detail, 'string'):
-                            error_message = error_detail.string
-                        elif hasattr(error_detail, '__str__'):
-                            error_message = str(error_detail)
-                            # Clean up ErrorDetail format: "ErrorDetail(string='message', code='invalid')" -> "message"
-                            if 'ErrorDetail' in error_message and 'string=' in error_message:
-                                import re
-                                match = re.search(r"string='([^']+)'", error_message)
-                                if match:
-                                    error_message = match.group(1)
-                        else:
-                            error_message = str(email_errors[0])
-                    else:
-                        error_message = str(email_errors)
-                else:
-                    # Get first error from any field
-                    first_error = list(serializer.errors.values())[0]
-                    if isinstance(first_error, list) and first_error:
-                        error_detail = first_error[0]
-                        # Extract error message from ErrorDetail object
-                        if hasattr(error_detail, 'string'):
-                            error_message = error_detail.string
-                        elif hasattr(error_detail, '__str__'):
-                            error_message = str(error_detail)
-                            # Clean up ErrorDetail format
-                            if 'ErrorDetail' in error_message and 'string=' in error_message:
-                                import re
-                                match = re.search(r"string='([^']+)'", error_message)
-                                if match:
-                                    error_message = match.group(1)
-                        else:
-                            error_message = str(error_detail)
-                    else:
-                        error_message = str(first_error)
+                # Try to get from request body directly
+                import json
+                try:
+                    body_data = json.loads(request.body)
+                    email_raw = body_data.get('email')
+                except:
+                    pass
             
+            logger.info(f'Extracted email: {repr(email_raw)}, type: {type(email_raw)}')
+        except Exception as e:
+            logger.error(f'Error extracting email from request: {str(e)}')
             return Response({
-                'error': error_message,
+                'error': 'Invalid request format.',
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Serializer is valid, try to save (send email)
+        # Validate email
+        if email_raw is None:
+            logger.error('Email is None')
+            return Response({
+                'error': 'Email address is required.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Convert to string
         try:
-            logger.info('Serializer is valid, attempting to send email...')
+            email = str(email_raw).strip()
+        except Exception as e:
+            logger.error(f'Error converting email to string: {str(e)}')
+            return Response({
+                'error': 'Invalid email address.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Basic validation
+        if not email:
+            logger.error('Email is empty')
+            return Response({
+                'error': 'Email address is required.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if '@' not in email:
+            logger.warning(f'Email missing @: {repr(email)}')
+            return Response({
+                'error': 'Please enter a valid email address.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Normalize email
+        email_normalized = email.lower().strip()
+        logger.info(f'Processing password reset for: {repr(email_normalized)}')
+        
+        # Call serializer's save method directly with validated email
+        # Create a minimal serializer instance and manually set validated_data
+        serializer = self.get_serializer()
+        serializer._validated_data = {'email': email_normalized}
+        
+        # Try to save (send email)
+        try:
+            logger.info('Attempting to send password reset email...')
             result = serializer.save()
             logger.info(f'Serializer save returned: {result}')
             
