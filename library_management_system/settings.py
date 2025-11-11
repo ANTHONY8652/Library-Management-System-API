@@ -417,9 +417,10 @@ SESSION_COOKIE_AGE = 86400  # 1 day
 # For production, set these environment variables:
 # EMAIL_BACKEND: 'django.core.mail.backends.smtp.EmailBackend' (auto-detected)
 # EMAIL_HOST: your SMTP server (e.g., 'smtp.gmail.com')
-# EMAIL_PORT: SMTP port (465 for SSL, 587 for TLS) - defaults to 465 (SSL)
-# EMAIL_USE_SSL: 'True' or 'False' - defaults to 'True' (SSL)
-# EMAIL_USE_TLS: 'True' or 'False' - defaults to 'False' (use SSL instead)
+# EMAIL_PORT: SMTP port (587 for TLS recommended, 465 for SSL) - defaults to 587 (TLS)
+# EMAIL_USE_TLS: 'True' or 'False' - defaults to 'True' (TLS - recommended)
+# EMAIL_USE_SSL: 'True' or 'False' - defaults to 'False' (use TLS instead)
+# NOTE: Port 587 with TLS is more reliable and less likely to be blocked by hosting providers
 # EMAIL_HOST_USER: your email address
 # EMAIL_HOST_PASSWORD: your email password
 # DEFAULT_FROM_EMAIL: email address to send from
@@ -446,9 +447,18 @@ else:
     )
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))  # Port 465 for SSL, 587 for TLS
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() in ('true', '1', 'yes')
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'True').lower() in ('true', '1', 'yes')  # Default to SSL
+
+# Default to port 587 with TLS (more reliable than 465 with SSL on many hosting platforms)
+# Port 587 (TLS) is generally more compatible and less likely to be blocked
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))  # Default to 587 (TLS) instead of 465 (SSL)
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')  # Default to TLS
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')  # Default to False (use TLS instead)
+
+# Ensure TLS and SSL are not both enabled
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    # If both are set, prefer TLS (more compatible)
+    EMAIL_USE_SSL = False
+
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@library.com')
 
 # SMTP Connection Timeouts (CRITICAL - prevents worker timeouts)

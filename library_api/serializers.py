@@ -386,10 +386,25 @@ Library Management System Team
                 error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
             elif '550' in error_msg or 'relay' in error_lower:
                 error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
-            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower:
-                error_message = f'Unable to connect to email server at {getattr(settings, "EMAIL_HOST", "unknown")}:{getattr(settings, "EMAIL_PORT", "unknown")}. Check EMAIL_HOST and EMAIL_PORT.'
+            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower or 'errno' in error_lower or 'gaierror' in error_lower:
+                port = getattr(settings, "EMAIL_PORT", "unknown")
+                host = getattr(settings, "EMAIL_HOST", "unknown")
+                use_ssl = getattr(settings, "EMAIL_USE_SSL", False)
+                use_tls = getattr(settings, "EMAIL_USE_TLS", False)
+                
+                # Provide specific guidance based on port
+                if port == 465:
+                    error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
+                elif port == 587:
+                    error_message = f'Unable to connect to {host}:{port}. Check: 1) EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are correct, 2) For Gmail, use an App Password (get from https://myaccount.google.com/apppasswords), 3) Firewall allows port 587.'
+                else:
+                    error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'ssl' in error_lower or 'tls' in error_lower:
-                error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings.'
+                port = getattr(settings, "EMAIL_PORT", "unknown")
+                if port == 465:
+                    error_message = 'SSL/TLS error with port 465. Try port 587 with TLS instead: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
+                else:
+                    error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings. For Gmail with port 587, use: EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
                 error_message = f'SMTP error: {error_msg}. Check your email server settings.'
             elif settings.DEBUG:
@@ -666,10 +681,25 @@ Library Management System Team
                 error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
             elif '550' in error_msg or 'relay' in error_lower:
                 error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
-            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower:
-                error_message = f'Unable to connect to email server at {getattr(settings, "EMAIL_HOST", "unknown")}:{getattr(settings, "EMAIL_PORT", "unknown")}. Check EMAIL_HOST and EMAIL_PORT.'
+            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower or 'errno' in error_lower or 'gaierror' in error_lower:
+                port = getattr(settings, "EMAIL_PORT", "unknown")
+                host = getattr(settings, "EMAIL_HOST", "unknown")
+                use_ssl = getattr(settings, "EMAIL_USE_SSL", False)
+                use_tls = getattr(settings, "EMAIL_USE_TLS", False)
+                
+                # Provide specific guidance based on port
+                if port == 465:
+                    error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
+                elif port == 587:
+                    error_message = f'Unable to connect to {host}:{port}. Check: 1) EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are correct, 2) For Gmail, use an App Password (get from https://myaccount.google.com/apppasswords), 3) Firewall allows port 587.'
+                else:
+                    error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'ssl' in error_lower or 'tls' in error_lower:
-                error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings.'
+                port = getattr(settings, "EMAIL_PORT", "unknown")
+                if port == 465:
+                    error_message = 'SSL/TLS error with port 465. Try port 587 with TLS instead: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
+                else:
+                    error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings. For Gmail with port 587, use: EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
             elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
                 error_message = f'SMTP error: {error_msg}. Check your email server settings.'
             elif settings.DEBUG:
