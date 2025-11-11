@@ -274,6 +274,11 @@ Library Management System Team
         logger.info(f'  To: {email}')
         logger.info(f'  Reset URL: {reset_url}')
         
+        # Check if sending to self (same FROM and TO addresses)
+        if from_email and email and from_email.lower().strip() == email.lower().strip():
+            logger.info(f'  NOTE: Sending email to self (FROM={from_email}, TO={email})')
+            logger.info(f'  Some email providers may have restrictions on sending to yourself')
+        
         try:
             # Check if we're in production with console backend (this shouldn't happen)
             if not settings.DEBUG and 'console' in email_backend.lower():

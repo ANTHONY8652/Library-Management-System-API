@@ -372,10 +372,28 @@ class PasswordResetRequestView(generics.GenericAPIView):
                     pass
             
             logger.info(f'Extracted email: {repr(email_raw)}, type: {type(email_raw)}')
+            
+            # Also try to get raw request body for debugging
+            try:
+                import json
+                raw_body = request.body.decode('utf-8') if request.body else ''
+                logger.info(f'Raw request body: {repr(raw_body)}')
+                if raw_body:
+                    try:
+                        body_json = json.loads(raw_body)
+                        logger.info(f'Parsed JSON body: {body_json}')
+                    except:
+                        logger.info('Request body is not valid JSON')
+            except Exception as body_err:
+                logger.warning(f'Could not read request body: {str(body_err)}')
         except Exception as e:
             logger.error(f'Error extracting email from request: {str(e)}')
+            logger.error(f'Request data type: {type(request.data)}')
+            logger.error(f'Request data: {request.data}')
+            import traceback
+            logger.error(f'Traceback: {traceback.format_exc()}')
             return Response({
-                'error': 'Invalid request format.',
+                'error': 'Invalid request format. Please check that you are sending a valid email address.',
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         
@@ -405,6 +423,8 @@ class PasswordResetRequestView(generics.GenericAPIView):
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        # More lenient validation - just check for @ and basic structure
+        # Allow emails with + signs, dots, and other valid characters
         if '@' not in email:
             logger.warning(f'Email missing @: {repr(email)}')
             return Response({
@@ -412,9 +432,27 @@ class PasswordResetRequestView(generics.GenericAPIView):
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Normalize email
+        # Check that @ is not at the start or end
+        if email.startswith('@') or email.endswith('@'):
+            logger.warning(f'Email has @ at invalid position: {repr(email)}')
+            return Response({
+                'error': 'Please enter a valid email address.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Split by @ and check both parts exist
+        parts = email.split('@')
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            logger.warning(f'Email has invalid format: {repr(email)}')
+            return Response({
+                'error': 'Please enter a valid email address.',
+                'success': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Normalize email (lowercase) but preserve the original for logging
         email_normalized = email.lower().strip()
-        logger.info(f'Processing password reset for: {repr(email_normalized)}')
+        logger.info(f'Processing password reset for: {repr(email_normalized)} (original: {repr(email)})')
+        logger.info(f'Email parts - local: {parts[0]}, domain: {parts[1]}')
         
         # Call serializer's save method directly with validated email
         # Create a minimal serializer instance and manually set validated_data
