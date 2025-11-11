@@ -235,9 +235,38 @@ Best regards,
 Library Management System Team
 '''
         
+        # Get email configuration
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@library.com')
+        email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
+        email_host_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+        
+        # Log configuration
+        logger.info(f'Email configuration for OTP:')
+        logger.info(f'  EMAIL_BACKEND: {email_backend}')
+        logger.info(f'  EMAIL_HOST_USER: {"SET" if email_host_user else "NOT SET"}')
+        logger.info(f'  EMAIL_HOST_PASSWORD: {"SET" if email_host_password else "NOT SET"}')
+        logger.info(f'  DEFAULT_FROM_EMAIL: {from_email}')
+        logger.info(f'  EMAIL_HOST: {getattr(settings, "EMAIL_HOST", "NOT SET")}')
+        logger.info(f'  EMAIL_PORT: {getattr(settings, "EMAIL_PORT", "NOT SET")}')
+        
+        # Check if using console backend in production
+        if not settings.DEBUG and 'console' in email_backend.lower():
+            error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production. Console backend cannot send real emails.'
+            logger.error(error_msg)
+            reset_code.delete()
+            raise serializers.ValidationError({'email': [error_msg]})
+        
+        # Check SMTP credentials if using SMTP
+        if 'smtp' in email_backend.lower():
+            if not email_host_user or not email_host_password:
+                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are required for SMTP. Please set these environment variables.'
+                logger.error(error_msg)
+                reset_code.delete()
+                raise serializers.ValidationError({'email': [error_msg]})
         
         try:
+            logger.info(f'Attempting to send OTP email to {email}')
             send_mail(
                 subject,
                 message,
@@ -245,13 +274,40 @@ Library Management System Team
                 [email],
                 fail_silently=False,
             )
-            logger.info(f'OTP code {code} sent to {email}')
+            logger.info(f'OTP code {code} sent successfully to {email}')
             return {'email_exists': True, 'code_sent': True}
         except Exception as e:
-            logger.error(f'Error sending OTP email: {str(e)}')
+            # Log detailed error
+            import traceback
+            error_msg = str(e)
+            error_type = type(e).__name__
+            
+            logger.error(f'Error sending OTP email to {email}')
+            logger.error(f'Error type: {error_type}')
+            logger.error(f'Error message: {error_msg}')
+            logger.error(f'Traceback: {traceback.format_exc()}')
+            
+            # Provide helpful error message based on error type
+            error_lower = error_msg.lower()
+            
+            if '535' in error_msg or 'authentication failed' in error_lower or 'invalid credentials' in error_lower:
+                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
+            elif '550' in error_msg or 'relay' in error_lower:
+                error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
+            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower:
+                error_message = f'Unable to connect to email server at {getattr(settings, "EMAIL_HOST", "unknown")}:{getattr(settings, "EMAIL_PORT", "unknown")}. Check EMAIL_HOST and EMAIL_PORT.'
+            elif 'ssl' in error_lower or 'tls' in error_lower:
+                error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings.'
+            elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
+                error_message = f'SMTP error: {error_msg}. Check your email server settings.'
+            elif settings.DEBUG:
+                error_message = f'Error sending email: {error_msg}. Check server logs for details.'
+            else:
+                error_message = 'Error sending email. Please check your email configuration and try again later.'
+            
             # Delete the code if email failed
             reset_code.delete()
-            raise serializers.ValidationError({'email': [f'Error sending email: {str(e)}']})
+            raise serializers.ValidationError({'email': [error_message]})
 
 
 class PasswordResetOTPVerifySerializer(serializers.Serializer):

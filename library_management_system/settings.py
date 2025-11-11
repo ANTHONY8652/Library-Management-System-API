@@ -392,10 +392,11 @@ SESSION_COOKIE_AGE = 86400  # 1 day
 
 # Email Configuration
 # For production, set these environment variables:
-# EMAIL_BACKEND: 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND: 'django.core.mail.backends.smtp.EmailBackend' (auto-detected)
 # EMAIL_HOST: your SMTP server (e.g., 'smtp.gmail.com')
-# EMAIL_PORT: SMTP port (e.g., 587)
-# EMAIL_USE_TLS: 'True' or 'False'
+# EMAIL_PORT: SMTP port (465 for SSL, 587 for TLS) - defaults to 465 (SSL)
+# EMAIL_USE_SSL: 'True' or 'False' - defaults to 'True' (SSL)
+# EMAIL_USE_TLS: 'True' or 'False' - defaults to 'False' (use SSL instead)
 # EMAIL_HOST_USER: your email address
 # EMAIL_HOST_PASSWORD: your email password
 # DEFAULT_FROM_EMAIL: email address to send from
@@ -422,9 +423,9 @@ else:
     )
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('true', '1', 'yes')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))  # Port 465 for SSL, 587 for TLS
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() in ('true', '1', 'yes')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'True').lower() in ('true', '1', 'yes')  # Default to SSL
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@library.com')
 
 # Frontend URL for password reset links
