@@ -288,17 +288,19 @@ Library Management System Team
             logger.info(f'Backend: {email_backend}')
             logger.info(f'Host: {email_host}:{email_port}')
             logger.info(f'SSL: {email_use_ssl}, TLS: {email_use_tls}')
+            logger.info(f'Timeout: {getattr(settings, "EMAIL_TIMEOUT", "NOT SET")} seconds')
             
-            # Test connection first (if possible)
-            try:
-                import smtplib
-                if email_use_ssl:
-                    logger.info(f'Testing SSL connection to {email_host}:{email_port}...')
-                    # Just log - don't actually connect here, let Django handle it
-                elif email_use_tls:
-                    logger.info(f'Testing TLS connection to {email_host}:{email_port}...')
-            except Exception as test_err:
-                logger.warning(f'Connection test note: {str(test_err)}')
+            # Import timeout settings
+            email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
+            
+            # Use connection with timeout to prevent hanging
+            from django.core.mail import get_connection
+            connection = get_connection(
+                fail_silently=False,
+                timeout=email_timeout,
+            )
+            
+            logger.info(f'Connection created with {email_timeout}s timeout')
             
             result = send_mail(
                 subject,
@@ -306,6 +308,7 @@ Library Management System Team
                 from_email,
                 [email],
                 fail_silently=False,
+                connection=connection,
             )
             logger.info(f'✅ EMAIL SENT SUCCESSFULLY!')
             logger.info(f'Result: {result}')
