@@ -209,15 +209,34 @@ class PasswordResetOTPRequestSerializer(serializers.Serializer):
         expires_at = timezone.now() + timedelta(minutes=15)
         
         # Invalidate any existing codes for this user
-        PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
+        # Use get_or_create pattern to handle case where table doesn't exist yet
+        try:
+            PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
+        except Exception as db_error:
+            # If table doesn't exist, log and continue (migration needed)
+            logger.error(f'Database error invalidating codes: {str(db_error)}')
+            if 'does not exist' in str(db_error) or 'relation' in str(db_error).lower():
+                raise serializers.ValidationError({
+                    'email': ['Database migration required. Please contact administrator.']
+                })
+            raise
         
         # Create new code
-        reset_code = PasswordResetCode.objects.create(
-            user=user,
-            code=code,
-            email=email,
-            expires_at=expires_at
-        )
+        try:
+            reset_code = PasswordResetCode.objects.create(
+                user=user,
+                code=code,
+                email=email,
+                expires_at=expires_at
+            )
+        except Exception as db_error:
+            # If table doesn't exist, log and raise clear error
+            logger.error(f'Database error creating reset code: {str(db_error)}')
+            if 'does not exist' in str(db_error) or 'relation' in str(db_error).lower():
+                raise serializers.ValidationError({
+                    'email': ['Database migration required. Please run migrations on the server.']
+                })
+            raise
         
         # Send email
         subject = 'Password Reset Code - Library Management System'
