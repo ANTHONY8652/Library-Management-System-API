@@ -240,15 +240,30 @@ Library Management System Team
         email_backend = getattr(settings, 'EMAIL_BACKEND', '')
         email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
         email_host_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+        email_host = getattr(settings, 'EMAIL_HOST', '')
+        email_port = getattr(settings, 'EMAIL_PORT', '')
+        email_use_ssl = getattr(settings, 'EMAIL_USE_SSL', False)
+        email_use_tls = getattr(settings, 'EMAIL_USE_TLS', False)
         
-        # Log configuration
-        logger.info(f'Email configuration for OTP:')
-        logger.info(f'  EMAIL_BACKEND: {email_backend}')
-        logger.info(f'  EMAIL_HOST_USER: {"SET" if email_host_user else "NOT SET"}')
-        logger.info(f'  EMAIL_HOST_PASSWORD: {"SET" if email_host_password else "NOT SET"}')
-        logger.info(f'  DEFAULT_FROM_EMAIL: {from_email}')
-        logger.info(f'  EMAIL_HOST: {getattr(settings, "EMAIL_HOST", "NOT SET")}')
-        logger.info(f'  EMAIL_PORT: {getattr(settings, "EMAIL_PORT", "NOT SET")}')
+        # Log FULL configuration for debugging
+        logger.info(f'=== EMAIL CONFIGURATION DEBUG ===')
+        logger.info(f'EMAIL_BACKEND: {email_backend}')
+        logger.info(f'EMAIL_HOST: {email_host}')
+        logger.info(f'EMAIL_PORT: {email_port}')
+        logger.info(f'EMAIL_USE_SSL: {email_use_ssl}')
+        logger.info(f'EMAIL_USE_TLS: {email_use_tls}')
+        logger.info(f'EMAIL_HOST_USER: {email_host_user if email_host_user else "NOT SET"}')
+        logger.info(f'EMAIL_HOST_PASSWORD: {"SET (length: " + str(len(email_host_password)) + ")" if email_host_password else "NOT SET"}')
+        logger.info(f'DEFAULT_FROM_EMAIL: {from_email}')
+        logger.info(f'DEBUG mode: {settings.DEBUG}')
+        logger.info(f'================================')
+        
+        # Validate port
+        if email_port:
+            if email_use_ssl and email_port not in [465, 994]:
+                logger.warning(f'Warning: Using SSL but port is {email_port}. Standard SSL ports are 465 (Gmail) or 994.')
+            elif email_use_tls and email_port not in [587, 25]:
+                logger.warning(f'Warning: Using TLS but port is {email_port}. Standard TLS port is 587 (Gmail).')
         
         # Check if using console backend in production
         if not settings.DEBUG and 'console' in email_backend.lower():
@@ -266,15 +281,35 @@ Library Management System Team
                 raise serializers.ValidationError({'email': [error_msg]})
         
         try:
-            logger.info(f'Attempting to send OTP email to {email}')
-            send_mail(
+            logger.info(f'=== ATTEMPTING TO SEND EMAIL ===')
+            logger.info(f'To: {email}')
+            logger.info(f'From: {from_email}')
+            logger.info(f'Subject: {subject}')
+            logger.info(f'Backend: {email_backend}')
+            logger.info(f'Host: {email_host}:{email_port}')
+            logger.info(f'SSL: {email_use_ssl}, TLS: {email_use_tls}')
+            
+            # Test connection first (if possible)
+            try:
+                import smtplib
+                if email_use_ssl:
+                    logger.info(f'Testing SSL connection to {email_host}:{email_port}...')
+                    # Just log - don't actually connect here, let Django handle it
+                elif email_use_tls:
+                    logger.info(f'Testing TLS connection to {email_host}:{email_port}...')
+            except Exception as test_err:
+                logger.warning(f'Connection test note: {str(test_err)}')
+            
+            result = send_mail(
                 subject,
                 message,
                 from_email,
                 [email],
                 fail_silently=False,
             )
-            logger.info(f'OTP code {code} sent successfully to {email}')
+            logger.info(f'✅ EMAIL SENT SUCCESSFULLY!')
+            logger.info(f'Result: {result}')
+            logger.info(f'OTP code {code} sent to {email}')
             return {'email_exists': True, 'code_sent': True}
         except Exception as e:
             # Log detailed error

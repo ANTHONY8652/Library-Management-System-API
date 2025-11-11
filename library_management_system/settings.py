@@ -290,29 +290,52 @@ SIMPLE_JWT = {
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'file_debug': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'filename': 'library_debug.log',
+            'formatter': 'verbose',
         },
         'file_warning': {
             'level': 'WARNING',
             'class': 'logging.FileHandler',
             'filename': 'library_warning.log',
+            'formatter': 'verbose',
         },
         'file_error': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
             'filename': 'library_error.log',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['file_debug', 'file_warning', 'file_error'],
+            'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
             'level': 'DEBUG',
             'propagate': True,
         },
+        'library_api': {
+            'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
+        'level': 'INFO',
     },
 }
 
@@ -405,8 +428,8 @@ SESSION_COOKIE_AGE = 86400  # 1 day
 # Email Backend Configuration
 # If EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set, use SMTP backend
 # Otherwise, use console backend for development (emails printed to terminal)
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip().strip('"').strip("'")
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip().strip('"').strip("'")
 
 # Auto-detect email backend based on configuration
 if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
