@@ -34,34 +34,12 @@ class MyCursorPagination(CursorPagination):
 
 class BookListCreateView(generics.ListCreateAPIView):
     serializer_class = BookSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly, CanViewBook]
     pagination_class = StandardResultsSetPagination
     ordering_fields = ['title', 'published_date']
     
     def get_queryset(self):
-        try:
-            return Book.objects.all().order_by('title', 'author')
-        except Exception as e:
-            logger.error(f"Error fetching books: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            try:
-                return Book.objects.none()
-            except:
-                return []
-    
-    def list(self, request, *args, **kwargs):
-        try:
-            return super().list(request, *args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in BookListCreateView.list: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return Response({
-                'error': 'Internal server error',
-                'message': 'Unable to fetch books. Please check database connection.',
-                'details': str(e) if settings.DEBUG else None
-            }, status=500)
+        return Book.objects.all().order_by('title', 'author')
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BookSerializer
@@ -113,7 +91,7 @@ class UserRegistrationView(generics.CreateAPIView):
 class UserProfileListCreateView(generics.ListCreateAPIView):
     queryset = UserProfile.objects.all().order_by('user')
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAdminUser, permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
 
 class UserProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = UserProfile.objects.all()
@@ -587,14 +565,9 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        logger.info('=== OTP PASSWORD RESET REQUEST ===')
-        logger.info(f'Request data: {request.data}')
-        logger.info(f'Endpoint: /password-reset-otp/')
-        
         serializer = self.get_serializer(data=request.data)
         
         if not serializer.is_valid():
-            logger.warning(f'OTP serializer validation failed: {serializer.errors}')
             return Response({
                 'error': 'Invalid email address.',
                 'success': False,
@@ -602,7 +575,6 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            logger.info('Calling OTP serializer.save()...')
             result = serializer.save()
             
             if isinstance(result, dict) and result.get('email_exists') == False:
@@ -629,22 +601,18 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
                     elif isinstance(email_errors, str):
                         error_message = email_errors
             
-            logger.error(f'Password reset OTP ValidationError: {error_message}')
             return Response({
                 'error': error_message,
                 'success': False
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            import traceback
-            error_type = type(e).__name__
             error_msg = str(e)
-            logger.error(f'Password reset OTP request error: {error_type}: {error_msg}')
-            logger.error(f'Traceback: {traceback.format_exc()}')
+            error_type = type(e).__name__
+            logger.error(f'Password reset error: {error_type}: {error_msg}')
             
-            # Check if it's a database error
             if 'database' in error_type.lower() or 'does not exist' in error_msg.lower() or 'relation' in error_msg.lower():
                 return Response({
-                    'error': 'Database migration required. Please contact administrator.',
+                    'error': 'Service temporarily unavailable. Please try again later.',
                     'success': False
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             

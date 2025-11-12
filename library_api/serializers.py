@@ -104,39 +104,109 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = User
         fields = ['username', 'email', 'password']
         extra_kwargs = {
             'password': {'write_only': True},
+            'username': {'required': True},
+            'email': {'required': True},
         }
     
+    def validate_username(self, value):
+        """Normalize username: trim whitespace, preserve original case for display"""
+        if not value:
+            raise serializers.ValidationError('Username is required')
+        # Allow spaces in username, but trim leading/trailing spaces
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Username cannot be empty')
+        # Check length
+        if len(value) < 3:
+            raise serializers.ValidationError('Username must be at least 3 characters long')
+        if len(value) > 150:
+            raise serializers.ValidationError('Username must be less than 150 characters')
+        return value
+    
+    def validate_email(self, value):
+        """Normalize email: trim and lowercase"""
+        if not value:
+            raise serializers.ValidationError('Email is required')
+        return value.strip().lower()
+    
+    def validate(self, attrs):
+        """Check for duplicate usernames (case-insensitive) and emails"""
+        username = attrs.get('username', '').strip()
+        email = attrs.get('email', '').strip().lower()
+        
+        # Check for existing username (case-insensitive)
+        if User.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError({
+                'username': 'A user with this username already exists.'
+            })
+        
+        # Check for existing email (case-insensitive)
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({
+                'email': 'A user with this email already exists.'
+            })
+        
+        return attrs
+    
     def create(self, validated_data):
+        """Create user with normalized email"""
+        # Store username as-is (allows spaces and original case)
+        # Store email in lowercase
         user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
+            username=validated_data['username'].strip(),
+            email=validated_data['email'].strip().lower(),
             password=validated_data['password']
         )
         return user
 
 
 class UserLoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    username_or_email = serializers.CharField(help_text='Username or email address')
     password = serializers.CharField(style={'input_type': 'password'}, trim_whitespace=False)
 
     def validate(self, data):
-        username = data.get('username')
+        username_or_email = data.get('username_or_email', '').strip()
         password = data.get('password')
 
-        if not username or not password:
-            raise serializers.ValidationError({'error': 'Both username and password are required'})
+        if not username_or_email or not password:
+            raise serializers.ValidationError({'error': 'Both username/email and password are required'})
         
-        user = authenticate(username=username, password=password)
+        # Try to find user by username (case-insensitive) or email (case-insensitive)
+        user = None
+        
+        # Check if it looks like an email (contains @)
+        if '@' in username_or_email:
+            # Try to find by email (case-insensitive)
+            try:
+                user = User.objects.get(email__iexact=username_or_email.lower())
+            except User.DoesNotExist:
+                pass
+            except User.MultipleObjectsReturned:
+                # If multiple users with same email, get the first one
+                user = User.objects.filter(email__iexact=username_or_email.lower()).first()
+        else:
+            # Try to find by username (case-insensitive)
+            try:
+                user = User.objects.get(username__iexact=username_or_email)
+            except User.DoesNotExist:
+                pass
+            except User.MultipleObjectsReturned:
+                # If multiple users with same username (shouldn't happen), get the first one
+                user = User.objects.filter(username__iexact=username_or_email).first()
+        
+        # If user found, authenticate with password
+        if user:
+            user = authenticate(username=user.username, password=password)
         
         if not user:
-            raise serializers.ValidationError({'error': 'Invalid username or password'})
+            raise serializers.ValidationError({'error': 'Invalid username/email or password'})
         
         if not user.is_active:
             raise serializers.ValidationError({'error': 'User account is disabled'})
@@ -146,7 +216,7 @@ class UserLoginSerializer(serializers.Serializer):
             'user': user,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            }
+        }
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -282,79 +352,22 @@ Library Management System Team
 '''
         
         # Get email configuration
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'noreply@library.com')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@library.com')
         email_backend = getattr(settings, 'EMAIL_BACKEND', '')
-        email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
-        email_host_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-        email_host = getattr(settings, 'EMAIL_HOST', '')
-        email_port = getattr(settings, 'EMAIL_PORT', '')
-        email_use_ssl = getattr(settings, 'EMAIL_USE_SSL', False)
-        email_use_tls = getattr(settings, 'EMAIL_USE_TLS', False)
         
-        # Log FULL configuration for debugging
-        logger.info(f'=== EMAIL CONFIGURATION DEBUG ===')
-        logger.info(f'EMAIL_BACKEND: {email_backend}')
-        logger.info(f'EMAIL_HOST: {email_host}')
-        logger.info(f'EMAIL_PORT: {email_port}')
-        logger.info(f'EMAIL_USE_SSL: {email_use_ssl}')
-        logger.info(f'EMAIL_USE_TLS: {email_use_tls}')
-        logger.info(f'EMAIL_HOST_USER: {email_host_user if email_host_user else "NOT SET"}')
-        logger.info(f'EMAIL_HOST_PASSWORD: {"SET (length: " + str(len(email_host_password)) + ")" if email_host_password else "NOT SET"}')
-        logger.info(f'DEFAULT_FROM_EMAIL: {from_email}')
-        logger.info(f'DEBUG mode: {settings.DEBUG}')
-        logger.info(f'================================')
-        
-        # Validate port
-        if email_port:
-            if email_use_ssl and email_port not in [465, 994]:
-                logger.warning(f'Warning: Using SSL but port is {email_port}. Standard SSL ports are 465 (Gmail) or 994.')
-            elif email_use_tls and email_port not in [587, 25]:
-                logger.warning(f'Warning: Using TLS but port is {email_port}. Standard TLS port is 587 (Gmail).')
-        
-        # Check if using console backend in production
+        # Check email backend configuration
         if not settings.DEBUG and 'console' in email_backend.lower():
-            error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production. Console backend cannot send real emails.'
-            logger.error(error_msg)
             if reset_code:
-                try:
-                    reset_code.delete()
-                except Exception as delete_error:
-                    logger.warning(f'Error deleting reset code: {str(delete_error)}')
-            raise serializers.ValidationError({'email': [error_msg]})
+                reset_code.delete()
+            raise serializers.ValidationError({
+                'email': ['Email configuration error: Email service not configured properly. Please contact administrator.']
+            })
         
-        # Check SMTP credentials if using SMTP
-        if 'smtp' in email_backend.lower():
-            if not email_host_user or not email_host_password:
-                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are required for SMTP. Please set these environment variables.'
-                logger.error(error_msg)
-                if reset_code:
-                    try:
-                        reset_code.delete()
-                    except Exception as delete_error:
-                        logger.warning(f'Error deleting reset code: {str(delete_error)}')
-                raise serializers.ValidationError({'email': [error_msg]})
-        
+        # Send email using Django's send_mail (will use configured backend)
         try:
-            logger.info(f'=== ATTEMPTING TO SEND EMAIL ===')
-            logger.info(f'To: {email}')
-            logger.info(f'From: {from_email}')
-            logger.info(f'Subject: {subject}')
-            logger.info(f'Backend: {email_backend}')
-            logger.info(f'Host: {email_host}:{email_port}')
-            logger.info(f'SSL: {email_use_ssl}, TLS: {email_use_tls}')
-            logger.info(f'Timeout: {getattr(settings, "EMAIL_TIMEOUT", "NOT SET")} seconds')
-            
-            # Import timeout settings
             email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
-            
-            # Use connection with timeout to prevent hanging
             from django.core.mail import get_connection
-            connection = get_connection(
-                fail_silently=False,
-                timeout=email_timeout,
-            )
-            
-            logger.info(f'Connection created with {email_timeout}s timeout')
+            connection = get_connection(fail_silently=False, timeout=email_timeout)
             
             result = send_mail(
                 subject,
@@ -364,60 +377,39 @@ Library Management System Team
                 fail_silently=False,
                 connection=connection,
             )
-            logger.info(f'✅ EMAIL SENT SUCCESSFULLY!')
-            logger.info(f'Result: {result}')
-            logger.info(f'OTP code {code} sent to {email}')
+            
+            logger.info(f'Password reset OTP sent to {email}')
             return {'email_exists': True, 'code_sent': True}
+            
         except Exception as e:
-            # Log detailed error
-            import traceback
             error_msg = str(e)
             error_type = type(e).__name__
-            
-            logger.error(f'Error sending OTP email to {email}')
-            logger.error(f'Error type: {error_type}')
-            logger.error(f'Error message: {error_msg}')
-            logger.error(f'Traceback: {traceback.format_exc()}')
-            
-            # Provide helpful error message based on error type
             error_lower = error_msg.lower()
             
-            if '535' in error_msg or 'authentication failed' in error_lower or 'invalid credentials' in error_lower:
-                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
-            elif '550' in error_msg or 'relay' in error_lower:
-                error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
-            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower or 'errno' in error_lower or 'gaierror' in error_lower:
-                port = getattr(settings, "EMAIL_PORT", "unknown")
-                host = getattr(settings, "EMAIL_HOST", "unknown")
-                use_ssl = getattr(settings, "EMAIL_USE_SSL", False)
-                use_tls = getattr(settings, "EMAIL_USE_TLS", False)
-                
-                # Provide specific guidance based on port
-                if port == 465:
-                    error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
-                elif port == 587:
-                    error_message = f'Unable to connect to {host}:{port}. This is often caused by hosting providers (like Render) blocking SMTP ports. SOLUTION: Use SendGrid or Mailgun instead of Gmail SMTP. Both offer free tiers and work reliably with Render. See: https://api.librarymanagementsystem.store/test-email/ for diagnostics, or check EMAIL_FIX_INSTRUCTIONS.md for setup guide.'
+            logger.error(f'Error sending password reset email: {error_type}: {error_msg}')
+            
+            # Provide user-friendly error messages
+            if 'api' in email_backend.lower() or 'brevo' in email_backend.lower():
+                if '401' in error_msg or 'unauthorized' in error_lower:
+                    error_message = 'Email service authentication failed. Please check BREVO_API_KEY configuration.'
+                elif '400' in error_msg:
+                    error_message = 'Email service configuration error. Please check DEFAULT_FROM_EMAIL and sender verification.'
                 else:
-                    error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-            elif 'ssl' in error_lower or 'tls' in error_lower:
-                port = getattr(settings, "EMAIL_PORT", "unknown")
-                if port == 465:
-                    error_message = 'SSL/TLS error with port 465. Try port 587 with TLS instead: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-                else:
-                    error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings. For Gmail with port 587, use: EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-            elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
-                error_message = f'SMTP error: {error_msg}. Check your email server settings.'
-            elif settings.DEBUG:
-                error_message = f'Error sending email: {error_msg}. Check server logs for details.'
+                    error_message = 'Error sending email. Please try again later or contact administrator.'
+            elif 'connection' in error_lower or 'timeout' in error_lower:
+                error_message = 'Unable to connect to email service. This may be a temporary issue. Please try again later.'
+            elif 'authentication' in error_lower or '535' in error_msg:
+                error_message = 'Email authentication failed. Please contact administrator.'
             else:
-                error_message = 'Error sending email. Please check your email configuration and try again later.'
+                error_message = 'Error sending email. Please try again later.'
             
             # Delete the code if email failed
             if reset_code:
                 try:
                     reset_code.delete()
-                except Exception as delete_error:
-                    logger.warning(f'Error deleting reset code after email failure: {str(delete_error)}')
+                except Exception:
+                    pass
+            
             raise serializers.ValidationError({'email': [error_message]})
 
 
@@ -478,20 +470,12 @@ class PasswordResetOTPVerifySerializer(serializers.Serializer):
             logger.error(f'Error looking up code: {str(e)}')
             raise serializers.ValidationError({'code': ['Invalid code']})
         
-        if not reset_code:
-            logger.warning(f'Invalid code {code} attempted for {email}')
+        if not reset_code or not reset_code.is_valid():
             raise serializers.ValidationError({'code': ['Invalid or expired code']})
         
-        # Check if code is valid
-        if not reset_code.is_valid():
-            logger.warning(f'Expired code {code} attempted for {email}')
-            raise serializers.ValidationError({'code': ['Code has expired. Please request a new one.']})
-        
-        # Set password
+        # Set password and mark code as used
         user.set_password(new_password)
         user.save()
-        
-        # Mark code as used
         reset_code.used = True
         reset_code.save()
         

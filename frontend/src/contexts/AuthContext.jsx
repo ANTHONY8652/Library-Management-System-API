@@ -25,9 +25,12 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
-  const login = async (username, password) => {
+  const login = async (usernameOrEmail, password) => {
     try {
-      const response = await api.post('/login/', { username, password })
+      const response = await api.post('/login/', { 
+        username_or_email: usernameOrEmail,
+        password 
+      })
       const { access, refresh, ...userData } = response.data
       
       localStorage.setItem('access_token', access)
@@ -40,7 +43,6 @@ export function AuthProvider({ children }) {
       return { success: true }
     } catch (error) {
       console.error('Login error:', error.response?.data)
-      // Handle different error response formats from DRF
       let errorMessage = 'Invalid credentials'
       if (error.response?.data) {
         if (error.response.data.error) {
@@ -120,13 +122,7 @@ export function AuthProvider({ children }) {
 
   const requestPasswordReset = async (email) => {
     try {
-      console.log('🚀 Requesting password reset for:', email)
-      console.log('📡 API Base URL:', api.defaults.baseURL)
-      console.log('📡 Full URL:', `${api.defaults.baseURL}/password-reset-otp/`)
-      
-      // Use new OTP-based endpoint
       const response = await api.post('/password-reset-otp/', { email })
-      console.log('✅ Password reset response:', response.data)
       return {
         success: true,
         message: response.data.message || 'A 6-digit verification code has been sent to your email address.',
@@ -134,16 +130,8 @@ export function AuthProvider({ children }) {
         suggest_signup: response.data.suggest_signup
       }
     } catch (error) {
-      console.error('❌ Password reset request error:', error)
-      console.error('❌ Error type:', error.constructor.name)
-      console.error('❌ Error message:', error.message)
-      console.error('❌ Error response:', error.response)
-      console.error('❌ Error request:', error.request)
-      console.error('❌ Error config:', error.config)
-      
       let errorMessage = 'Error sending verification code. Please try again.'
       
-      // Network error (no response from server)
       if (!error.response) {
         if (error.code === 'ECONNABORTED') {
           errorMessage = 'Request timeout. Please check your connection and try again.'
@@ -152,24 +140,19 @@ export function AuthProvider({ children }) {
         } else {
           errorMessage = `Connection error: ${error.message}. Please check if the backend is running.`
         }
-        console.error('❌ Network error - backend not reached:', errorMessage)
-      } else {
-        // Server responded with error
-        console.error('❌ Server error response:', error.response.status, error.response.data)
-        if (error.response.data) {
-          if (error.response.data.error) {
-            errorMessage = Array.isArray(error.response.data.error) 
-              ? error.response.data.error[0] 
-              : error.response.data.error
-          } else if (error.response.data.email) {
-            errorMessage = Array.isArray(error.response.data.email)
-              ? error.response.data.email[0]
-              : error.response.data.email
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message
-          } else if (error.response.data.detail) {
-            errorMessage = error.response.data.detail
-          }
+      } else if (error.response.data) {
+        if (error.response.data.error) {
+          errorMessage = Array.isArray(error.response.data.error) 
+            ? error.response.data.error[0] 
+            : error.response.data.error
+        } else if (error.response.data.email) {
+          errorMessage = Array.isArray(error.response.data.email)
+            ? error.response.data.email[0]
+            : error.response.data.email
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail
         }
       }
       
