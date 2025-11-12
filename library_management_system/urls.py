@@ -404,11 +404,17 @@ def test_email_connection(request):
                 'solution': 'Consider using SendGrid (free tier) or Mailgun (free tier) - see EMAIL_FIX_INSTRUCTIONS.md'
             })
     
-    if not smtp_test['success'] and socket_test['success']:
-        response_data['recommendations'].append({
-            'issue': 'SMTP authentication may be failing',
-            'solution': 'Check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use App Password.'
-        })
+    if not backend_test['success'] and socket_test['success']:
+        if 'brevo' in email_backend.lower() or 'api' in email_backend.lower():
+            response_data['recommendations'].append({
+                'issue': 'Brevo API authentication may be failing',
+                'solution': 'Check BREVO_API_KEY is correct and has "Send emails" permission. Verify sender email in Brevo.'
+            })
+        else:
+            response_data['recommendations'].append({
+                'issue': 'SMTP authentication may be failing',
+                'solution': 'Check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use App Password.'
+            })
     
     status_code = 200 if all_tests_passed else 503
     return Response(response_data, status=status_code)
