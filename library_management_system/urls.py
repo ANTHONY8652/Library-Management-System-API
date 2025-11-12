@@ -26,6 +26,17 @@ from rest_framework.response import Response
 from django.db import connection
 import os
 
+def check_admin_access(user):
+    """Helper function to check if user is admin or superuser"""
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        return user.userprofile.role == 'admin'
+    except:
+        return False
+
 try:
     schema_view = get_schema_view(
         openapi.Info(
@@ -41,8 +52,8 @@ try:
             contact = openapi.Contact(email=os.getenv('ADMIN_EMAIL', 'admin@yourdomain.com')),
             license = openapi.License(name='BSD License'),
         ),
-        public=True,
-        permission_classes=(permissions.AllowAny,),
+        public=False,
+        permission_classes=(permissions.IsAuthenticated,),
     )
 except Exception as e:
     # Fallback if schema generation fails
@@ -50,24 +61,39 @@ except Exception as e:
 
 @api_view(['GET'])
 def health_check(request):
-    """Simple health check endpoint"""
+    """Simple health check endpoint - SECURED: Admin only"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required. Admin access only.',
+            }, status=401)
+        return Response({
+            'status': 'error',
+            'message': 'Permission denied. Admin access only.',
+        }, status=403)
+    
     return Response({
         'status': 'healthy',
         'service': 'Library Management API',
         'version': '1.0.0'
     })
-health_check.permission_classes = [permissions.AllowAny]
+health_check.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET'])
 def db_health_check(request):
     """Database health check endpoint - SECURED: Admin only"""
     from django.db import connection
     
-    # Require authentication and superuser status
-    if not request.user.is_authenticated or not request.user.is_superuser:
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required. Admin access only.',
+            }, status=401)
         return Response({
             'status': 'error',
-            'message': 'Permission denied. Only superusers can access database health check.',
+            'message': 'Permission denied. Admin access only.',
         }, status=403)
     
     try:
@@ -125,11 +151,15 @@ def run_migrations(request):
     from django.core.management import call_command
     from io import StringIO
     
-    # Require authentication and superuser status
-    if not request.user.is_authenticated or not request.user.is_superuser:
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required. Admin access only.',
+            }, status=401)
         return Response({
             'status': 'error',
-            'message': 'Permission denied. Only superusers can run migrations.',
+            'message': 'Permission denied. Admin access only.',
         }, status=403)
     
     try:
@@ -155,7 +185,6 @@ def run_migrations(request):
         }, status=500)
 run_migrations.permission_classes = [permissions.IsAuthenticated]
 
-@api_view(['GET', 'POST'])
 def test_email_connection(request):
     """Test email connection and configuration"""
     from django.conf import settings
@@ -365,90 +394,26 @@ def test_email_connection(request):
     status_code = 200 if all_tests_passed else 503
     return Response(response_data, status=status_code)
 
-# Require authentication for test-email endpoint
-test_email_connection.permission_classes = [permissions.IsAuthenticated]
-
-@api_view(['POST'])
-def create_admin_user(request):
-    """Create superuser - requires authenticated superuser (SECURED)"""
-    # Require authentication and superuser status
-    if not request.user.is_authenticated:
+# Require admin/superuser for test-email endpoint
+def test_email_connection_admin_check(request):
+    """Wrapper to check admin access before test_email_connection"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'status': 'error',
+                'message': 'Authentication required. Admin access only.',
+            }, status=401)
         return Response({
             'status': 'error',
-            'message': 'Authentication required. You must be logged in as a superuser.',
-            'hint': 'Use Django admin login or session authentication'
-        }, status=401)
-    
-    if not request.user.is_superuser:
-        return Response({
-            'status': 'error',
-            'message': 'Permission denied. Only superusers can create admin accounts.',
+            'message': 'Permission denied. Admin access only.',
         }, status=403)
     
-    import os
-    from django.contrib.auth import get_user_model
-    
-    User = get_user_model()
-    
-    # Get credentials from request body
-    username = request.data.get('username') or request.POST.get('username')
-    email = request.data.get('email') or request.POST.get('email', '')
-    password = request.data.get('password') or request.POST.get('password')
-    
-    # Validate required fields
-    if not username or not password:
-        return Response({
-            'status': 'error',
-            'message': 'username and password are required',
-            'example': {
-                'username': 'newadmin',
-                'email': 'admin@example.com',
-                'password': 'your-secure-password'
-            }
-        }, status=400)
-    
-    try:
-        # Check if user already exists
-        user, created = User.objects.get_or_create(username=username)
-        
-        if created:
-            # New user - create as superuser
-            user.is_superuser = True
-            user.is_staff = True
-            user.email = email
-            user.set_password(password)
-            user.save()
-            message = f'Successfully created superuser "{username}"'
-        else:
-            # Existing user - update to superuser
-            user.is_superuser = True
-            user.is_staff = True
-            if email:
-                user.email = email
-            user.set_password(password)
-            user.save()
-            message = f'Successfully updated user "{username}" to superuser'
-        
-        return Response({
-            'status': 'success',
-            'message': message,
-            'username': username,
-            'email': email,
-            'is_superuser': user.is_superuser,
-            'is_staff': user.is_staff,
-            'next_step': f'New admin can login at /admin/ with username: {username}'
-        }, status=200)
-        
-    except Exception as e:
-        import traceback
-        return Response({
-            'status': 'error',
-            'message': 'Error creating superuser',
-            'error': str(e),
-            'traceback': traceback.format_exc() if settings.DEBUG else None
-        }, status=500)
-# Require authentication - only superusers can access
-create_admin_user.permission_classes = [permissions.IsAuthenticated]
+    # Call original function
+    return test_email_connection(request)
+
+test_email_connection.permission_classes = [permissions.IsAuthenticated]
+
+# create_admin_user function removed for security - use Django admin or management commands instead
 
 def root_view(request):
     """Root endpoint - redirects to Swagger UI"""
@@ -470,16 +435,38 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('health/db/', db_health_check, name='db-health-check'),
     path('migrate/', run_migrations, name='run-migrations'),
-    path('test-email/', test_email_connection, name='test-email-connection'),
-    # Admin creation endpoint - SECURED: Only authenticated superusers can access
-    # To completely disable, set ENABLE_CREATE_ADMIN_ENDPOINT=false in environment
-    # path('create-admin/', create_admin_user, name='create-admin'),  # DISABLED
+    path('test-email/', test_email_connection_admin_check, name='test-email-connection'),
     path('', root_view, name='root'),
 ]
 
 # Add Swagger/ReDoc URLs only if schema_view is available
+# Swagger/ReDoc are secured to admin only
+def swagger_ui_wrapper(request):
+    """Wrapper to check admin access for Swagger UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return Response({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return schema_view.with_ui('swagger', cache_timeout=0)(request)
+
+def redoc_ui_wrapper(request):
+    """Wrapper to check admin access for ReDoc UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return Response({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return schema_view.with_ui('redoc', cache_timeout=0)(request)
+
 if schema_view:
     urlpatterns += [
-        path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-        path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-with-ui'),
+        path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
+        path('redoc/', redoc_ui_wrapper, name='schema-redoc-with-ui'),
     ]

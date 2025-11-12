@@ -25,7 +25,7 @@ db.sqlite3-journal
 local_settings.py
 *.mo
 *.po
-
+*.md
 # Django migrations (uncomment if you don't want to track migrations)
 # */migrations/*.py
 # */migrations/*.pyc
@@ -207,6 +207,11 @@ BREVO_SETUP.md
 BREVO_SETUP_STEP_BY_STEP.md
 BREVO_API_SETUP.md
 EMAIL_SERVICE_ALTERNATIVES.md
+
+# ============================================
+# Documentation (Internal Guides)
+# ============================================
+CODE_ARCHITECTURE_AND_DATA_FLOW.md
 
 # ============================================
 # Project Specific
