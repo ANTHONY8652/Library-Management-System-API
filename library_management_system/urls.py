@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
+from django.http import HttpResponse, JsonResponse
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -445,10 +446,10 @@ def swagger_ui_wrapper(request):
     """Wrapper to check admin access for Swagger UI"""
     if not check_admin_access(request.user):
         if not request.user.is_authenticated:
-            return Response({
+            return JsonResponse({
                 'error': 'Authentication required. Admin access only.',
             }, status=401)
-        return Response({
+        return JsonResponse({
             'error': 'Permission denied. Admin access only.',
         }, status=403)
     return schema_view.with_ui('swagger', cache_timeout=0)(request)
@@ -457,10 +458,10 @@ def redoc_ui_wrapper(request):
     """Wrapper to check admin access for ReDoc UI"""
     if not check_admin_access(request.user):
         if not request.user.is_authenticated:
-            return Response({
+            return JsonResponse({
                 'error': 'Authentication required. Admin access only.',
             }, status=401)
-        return Response({
+        return JsonResponse({
             'error': 'Permission denied. Admin access only.',
         }, status=403)
     return schema_view.with_ui('redoc', cache_timeout=0)(request)
