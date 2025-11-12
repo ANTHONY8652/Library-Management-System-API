@@ -5,7 +5,6 @@ from .models import Book, Transaction, UserProfile
 from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordResetOTPRequestSerializer, PasswordResetOTPVerifySerializer
 from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember
 from django.shortcuts import render
-from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta

@@ -71,22 +71,8 @@ if os.getenv("RENDER") or render_external_url:
                         if www_host not in ALLOWED_HOSTS:
                             ALLOWED_HOSTS.append(www_host)
     
-    # Note: In production, you should set ALLOWED_HOSTS explicitly via environment variable
-    # This auto-detection is a convenience for initial deployment only
-    
-    # If we still don't have a hostname, try to construct it from service name
-    # Note: Render URLs are typically {service-name}-{random-id}.onrender.com
-    if not ALLOWED_HOSTS and render_service_name:
-        # Try the service name pattern (might not match exactly, but helps with initial deployment)
-        potential_host = f"{render_service_name}.onrender.com"
-        ALLOWED_HOSTS.append(potential_host)
-        import warnings
-        warnings.warn(
-            f"Could not auto-detect Render hostname. Using {potential_host} as fallback. "
-            "Please set ALLOWED_HOSTS environment variable in Render dashboard with your actual service URL "
-            "(found in your Render service settings).",
-            UserWarning
-        )
+    # Note: In production, you MUST set ALLOWED_HOSTS explicitly via environment variable
+    # Auto-detection is disabled for security - set ALLOWED_HOSTS in Render dashboard
 
 # Remove duplicates while preserving order
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
