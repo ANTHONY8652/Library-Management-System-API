@@ -186,8 +186,9 @@ def run_migrations(request):
         }, status=500)
 run_migrations.permission_classes = [permissions.IsAuthenticated]
 
+@api_view(['GET', 'POST'])
 def test_email_connection(request):
-    """Test email connection and configuration"""
+    """Test email connection and configuration - SECURED: Admin only"""
     from django.conf import settings
     from django.core.mail import get_connection
     import socket
@@ -396,6 +397,7 @@ def test_email_connection(request):
     return Response(response_data, status=status_code)
 
 # Require admin/superuser for test-email endpoint
+@api_view(['GET', 'POST'])
 def test_email_connection_admin_check(request):
     """Wrapper to check admin access before test_email_connection"""
     if not check_admin_access(request.user):
@@ -409,7 +411,7 @@ def test_email_connection_admin_check(request):
             'message': 'Permission denied. Admin access only.',
         }, status=403)
     
-    # Call original function
+    # Call original function (which is also a DRF view)
     return test_email_connection(request)
 
 test_email_connection.permission_classes = [permissions.IsAuthenticated]
