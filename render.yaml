@@ -33,6 +33,16 @@ services:
           property: port
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: DEFAULT_FROM_NAME
+        value: Library Management System
+      - key: EMAIL_TIMEOUT
+        value: "10"
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_EMAIL

@@ -83,8 +83,7 @@ class UserRegistrationView(generics.CreateAPIView):
                 'role': role,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-                'message': f'{user} created successfully.Redirecting to login...',
-                'redirect_url': 'http://localhost:8000/login/',
+                'message': f'{user} created successfully.',
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -280,7 +279,6 @@ class UserLoginView(generics.GenericAPIView):
             'role': role,
             'refresh': serializer.validated_data['refresh'],
             'access': serializer.validated_data['access'],
-            'redirect_url': 'http://localhost:8000/available-books/',
         }, status=200)
     
 class UserLogoutView(APIView):
@@ -297,7 +295,7 @@ class UserLogoutView(APIView):
             token.blacklist()
 
             logger.info(f'Token blacklisted successfully for user: {request.user.username}')
-            return Response({'message': 'Logged out successfully', 'login_url': reverse('login', request=request)}, status=status.HTTP_200_OK)
+            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
         
         except Exception as e:
             logger.error(f'Error during logout: {str(e)}')

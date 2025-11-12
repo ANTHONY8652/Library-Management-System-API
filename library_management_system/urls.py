@@ -24,6 +24,7 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db import connection
+import os
 
 try:
     schema_view = get_schema_view(
@@ -36,8 +37,8 @@ try:
                 "authentication, book management, and user interactions, including borrowing and "
                 "returning books, managing user accounts, and tracking book availability."
             ),
-            terms_of_service="https://www.google.com/policies/terms/",
-            contact = openapi.Contact(email='githinjianthony720@gmail.com'),
+            terms_of_service="https://yourdomain.com/terms/",
+            contact = openapi.Contact(email=os.getenv('ADMIN_EMAIL', 'admin@yourdomain.com')),
             license = openapi.License(name='BSD License'),
         ),
         public=True,
@@ -59,44 +60,23 @@ health_check.permission_classes = [permissions.AllowAny]
 
 @api_view(['GET'])
 def db_health_check(request):
-    """Database health check endpoint - tests PostgreSQL connection"""
-    import os
+    """Database health check endpoint - SECURED: Admin only"""
     from django.db import connection
     
-    # First, check environment variables
-    env_vars = {
-        'DB_NAME': os.getenv("DB_NAME", "NOT SET"),
-        'DB_USER': os.getenv("DB_USER", "NOT SET"),
-        'DB_PASSWORD': "***" if os.getenv("DB_PASSWORD") else "NOT SET",
-        'DB_HOST': os.getenv("DB_HOST", "NOT SET"),
-        'DB_PORT': os.getenv("DB_PORT", "NOT SET"),
-    }
-    
-    # Check if any are missing
-    missing_vars = [k for k, v in env_vars.items() if v == "NOT SET" and k != 'DB_PASSWORD']
-    if missing_vars:
+    # Require authentication and superuser status
+    if not request.user.is_authenticated or not request.user.is_superuser:
         return Response({
             'status': 'error',
-            'message': 'Database environment variables not set',
-            'missing_variables': missing_vars,
-            'environment_variables': env_vars,
-            'suggestion': 'Go to Render dashboard → Your Service → Environment → Add the missing variables'
-        }, status=503)
+            'message': 'Permission denied. Only superusers can access database health check.',
+        }, status=403)
     
     try:
         # Test database connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-            result = cursor.fetchone()
+            cursor.fetchone()
         
-        # Get database info from connection
-        db_config = connection.settings_dict
-        db_name = db_config.get('NAME', 'unknown')
-        db_host = db_config.get('HOST', 'unknown')
-        db_port = db_config.get('PORT', 'unknown')
-        db_user = db_config.get('USER', 'unknown')
-        
-        # Check if tables exist (migrations have been run)
+        # Check if tables exist
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
@@ -106,11 +86,8 @@ def db_health_check(request):
                     ORDER BY table_name
                 """)
                 tables = [row[0] for row in cursor.fetchall()]
-        except Exception as table_error:
+        except Exception:
             tables = []
-            # Log the error but continue
-            import logging
-            logging.getLogger(__name__).error(f"Error checking tables: {str(table_error)}")
         
         # Check for key tables
         key_tables = ['library_api_book', 'library_api_userprofile', 'library_api_transaction']
@@ -119,74 +96,43 @@ def db_health_check(request):
         response_data = {
             'status': 'connected',
             'database': {
-                'name': db_name,
-                'host': db_host,
-                'port': str(db_port),
-                'user': db_user,
                 'connection': 'successful',
-                'environment_variables_set': True
+                'migrations_applied': len(tables) > 0,
             },
             'migrations': {
                 'applied': len(tables) > 0,
                 'total_tables': len(tables),
                 'key_tables_present': len(missing_tables) == 0,
                 'missing_tables': missing_tables if missing_tables else None,
-                'all_tables': tables[:20] if tables else []  # Show first 20 tables
             }
         }
-        
-        if not tables:
-            response_data['migrations']['warning'] = 'No tables found. Run migrations: python manage.py migrate'
         
         return Response(response_data, status=200)
         
     except Exception as e:
-        import traceback
-        error_details = str(e)
-        error_type = type(e).__name__
-        traceback_str = traceback.format_exc()
-        
-        # Get database config (without password) for debugging
-        try:
-            db_config = connection.settings_dict
-            config_info = {
-                'name': db_config.get('NAME', 'unknown'),
-                'host': db_config.get('HOST', 'unknown'),
-                'port': str(db_config.get('PORT', 'unknown')),
-                'user': db_config.get('USER', 'unknown'),
-                'engine': db_config.get('ENGINE', 'unknown'),
-            }
-        except:
-            config_info = {'error': 'Could not read database config'}
-        
         return Response({
             'status': 'error',
             'database': {
                 'connection': 'failed',
-                'error_type': error_type,
-                'error': error_details,
-                'config': config_info,
-                'environment_variables': env_vars,
+                'error': str(e) if settings.DEBUG else 'Database connection failed. Check server logs.',
             },
-            'troubleshooting': {
-                'step1': 'Check Render dashboard → Your Service → Environment → Verify DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT are set',
-                'step2': 'Check Render dashboard → Databases → Verify library-db database exists and is running',
-                'step3': 'Check build logs to see if migrations ran successfully',
-                'step4': 'Verify database is in the same region as your service'
-            },
-            'traceback': traceback_str if settings.DEBUG else None
         }, status=503)
-db_health_check.permission_classes = [permissions.AllowAny]
+db_health_check.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET', 'POST'])
 def run_migrations(request):
-    """Run database migrations"""
+    """Run database migrations - SECURED: Admin only"""
     from django.core.management import call_command
     from io import StringIO
-    import sys
+    
+    # Require authentication and superuser status
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return Response({
+            'status': 'error',
+            'message': 'Permission denied. Only superusers can run migrations.',
+        }, status=403)
     
     try:
-        # Capture migration output
         out = StringIO()
         err = StringIO()
         call_command('migrate', '--noinput', verbosity=2, stdout=out, stderr=err)
@@ -204,10 +150,10 @@ def run_migrations(request):
         return Response({
             'status': 'error',
             'message': 'Migration failed',
-            'error': str(e),
-            'traceback': traceback.format_exc()
+            'error': str(e) if settings.DEBUG else 'Migration failed. Check server logs.',
+            'traceback': traceback.format_exc() if settings.DEBUG else None
         }, status=500)
-run_migrations.permission_classes = [permissions.AllowAny]
+run_migrations.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET', 'POST'])
 def test_email_connection(request):
@@ -419,7 +365,8 @@ def test_email_connection(request):
     status_code = 200 if all_tests_passed else 503
     return Response(response_data, status=status_code)
 
-test_email_connection.permission_classes = [permissions.AllowAny]
+# Require authentication for test-email endpoint
+test_email_connection.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['POST'])
 def create_admin_user(request):

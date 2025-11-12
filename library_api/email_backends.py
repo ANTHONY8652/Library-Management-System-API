@@ -88,7 +88,6 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
             }
             
             logger.info(f'Sending email via Brevo API to: {email_message.to}')
-            logger.debug(f'Brevo API payload: {payload}')
             
             response = requests.post(
                 self.api_url,

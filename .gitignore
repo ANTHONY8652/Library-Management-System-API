@@ -197,13 +197,9 @@ celerybeat.pid
 .render/
 
 # ============================================
-# Documentation (keep only README.md and guides)
+# Documentation (keep only README.md)
 # ============================================
-*.md
-!README.md
-!frontend/README.md
-!PASSWORD_RESET_OTP_GUIDE.md
-!PASSWORD_RESET_LOGIC_AND_FLOW.md
+# Email setup guides (remove if not needed)
 EMAIL_FIX_INSTRUCTIONS.md
 SENDGRID_QUICK_SETUP.md
 MAILGUN_SETUP.md

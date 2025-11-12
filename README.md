@@ -147,13 +147,33 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory:
 
 ```env
+# Required
 DJANGO_SECRET_KEY=your-secret-key-here
-DEBUG=Your choice here
+DEBUG=True
 DB_NAME=your_db_name
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 DB_HOST=localhost
 DB_PORT=5432
+
+# Frontend Configuration
+FRONTEND_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# Email Configuration (for password reset)
+# Option 1: Brevo API (Recommended - works on Render)
+BREVO_API_KEY=your-brevo-api-key
+DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+DEFAULT_FROM_NAME=Library Management System
+
+# Option 2: SMTP (Alternative)
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# EMAIL_HOST=smtp.gmail.com
+# EMAIL_PORT=587
+# EMAIL_USE_TLS=True
+# EMAIL_USE_SSL=False
+# EMAIL_HOST_USER=your-email@gmail.com
+# EMAIL_HOST_PASSWORD=your-app-password
 ```
 
 **Important:** Generate a strong secret key for production:
@@ -164,7 +184,6 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 #### Run Database Migrations
 
 ```bash
-python manage.py migrate
 python manage.py migrate
 ```
 
@@ -341,7 +360,18 @@ Before deploying to production:
 
 4. **Frontend** - Update API URLs to use environment variables
 
-See `SECURITY_CHECKLIST.md` for complete security guidelines.
+### Required Environment Variables for Production
+
+```env
+DJANGO_SECRET_KEY=<strong-random-key>
+DEBUG=False
+ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+FRONTEND_URL=https://yourdomain.com
+BREVO_API_KEY=your-brevo-api-key
+DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+DB_PASSWORD=<strong-password>
+```
 
 ## 🐛 Troubleshooting
 

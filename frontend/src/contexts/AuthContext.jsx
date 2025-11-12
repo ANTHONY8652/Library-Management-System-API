@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
         setUser(JSON.parse(userData))
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
       } catch (error) {
-        console.error('Error parsing user data:', error)
+        // Silently handle parsing errors
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         localStorage.removeItem('user')
@@ -42,7 +42,6 @@ export function AuthProvider({ children }) {
       
       return { success: true }
     } catch (error) {
-      console.error('Login error:', error.response?.data)
       let errorMessage = 'Invalid credentials'
       if (error.response?.data) {
         if (error.response.data.error) {
@@ -110,7 +109,7 @@ export function AuthProvider({ children }) {
         await api.post('/logout/', { refresh })
       }
     } catch (error) {
-      console.error('Logout error:', error)
+      // Silently handle logout errors
     } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
@@ -176,7 +175,6 @@ export function AuthProvider({ children }) {
         message: response.data.message || 'Password has been reset successfully.'
       }
     } catch (error) {
-      console.error('Password reset verify error:', error.response?.data)
       let errorMessage = 'Error resetting password. Please try again.'
       if (error.response?.data) {
         if (error.response.data.error) {
@@ -211,7 +209,6 @@ export function AuthProvider({ children }) {
         message: response.data.message || 'Password has been reset successfully.'
       }
     } catch (error) {
-      console.error('Password reset confirm error:', error.response?.data)
       let errorMessage = 'Error resetting password. Please try again.'
       if (error.response?.data) {
         if (error.response.data.error) {

@@ -11,10 +11,22 @@ const getApiBaseUrl = () => {
     return url.endsWith('/api') ? url : `${url}/api`
   }
   
-  // Check if we're in production (Vercel deployment)
-  // In production, use custom domain API
+  // Check if we're in production
+  // In production, derive API URL from current hostname or use environment variable
   if (import.meta.env.MODE === 'production' || window.location.hostname !== 'localhost') {
-    return 'https://api.librarymanagementsystem.store/api'
+    // Try to derive API URL from current hostname
+    // If frontend is at https://yourdomain.com, API should be at https://api.yourdomain.com
+    const hostname = window.location.hostname
+    if (hostname && hostname !== 'localhost') {
+      // Remove 'www.' if present and construct API URL
+      const domain = hostname.replace(/^www\./, '')
+      // Check if already an API subdomain
+      if (domain.startsWith('api.')) {
+        return `https://${domain}/api`
+      }
+      // Otherwise, use api subdomain
+      return `https://api.${domain}/api`
+    }
   }
   
   // Development: use localhost
@@ -38,14 +50,16 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    console.log('📤 API Request:', config.method?.toUpperCase(), config.url, {
-      baseURL: config.baseURL,
-      data: config.data
-    })
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.log('API Request:', config.method?.toUpperCase(), config.url)
+    }
     return config
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error)
+    if (import.meta.env.DEV) {
+      console.error('Request interceptor error:', error)
+    }
     return Promise.reject(error)
   }
 )
@@ -53,28 +67,22 @@ api.interceptors.request.use(
 // Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ API Response:', response.config.method?.toUpperCase(), response.config.url, response.status)
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.log('API Response:', response.config.method?.toUpperCase(), response.config.url, response.status)
+    }
     return response
   },
   async (error) => {
     const originalRequest = error.config
 
-    // Log all errors for debugging
-    if (!error.response) {
-      console.error('❌ Network Error - No response from server:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        baseURL: error.config?.baseURL,
-        message: error.message,
-        code: error.code
-      })
-    } else {
-      console.error('❌ API Error Response:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        status: error.response.status,
-        data: error.response.data
-      })
+    // Only log errors in development
+    if (import.meta.env.DEV) {
+      if (!error.response) {
+        console.error('Network Error:', error.message)
+      } else {
+        console.error('API Error:', error.response.status, error.config?.url)
+      }
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {

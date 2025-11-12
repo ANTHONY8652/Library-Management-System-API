@@ -71,11 +71,8 @@ if os.getenv("RENDER") or render_external_url:
                         if www_host not in ALLOWED_HOSTS:
                             ALLOWED_HOSTS.append(www_host)
     
-    # Fallback: add known Render URL (only if no custom domain is set)
-    if not ALLOWED_HOSTS or all('onrender.com' in host for host in ALLOWED_HOSTS):
-        # Only add fallback if we don't have a custom domain
-        if not any(host for host in ALLOWED_HOSTS if 'onrender.com' not in host):
-            ALLOWED_HOSTS.append('library-management-system-api-of7r.onrender.com')
+    # Note: In production, you should set ALLOWED_HOSTS explicitly via environment variable
+    # This auto-detection is a convenience for initial deployment only
     
     # If we still don't have a hostname, try to construct it from service name
     # Note: Render URLs are typically {service-name}-{random-id}.onrender.com
@@ -298,14 +295,8 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'INFO',
+            'level': 'INFO' if not DEBUG else 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file_debug': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': 'library_debug.log',
             'formatter': 'verbose',
         },
         'file_warning': {
@@ -323,19 +314,19 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
-            'level': 'DEBUG',
+            'handlers': ['console', 'file_warning', 'file_error'],
+            'level': 'INFO' if not DEBUG else 'DEBUG',
             'propagate': True,
         },
         'library_api': {
-            'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
-            'level': 'DEBUG',
+            'handlers': ['console', 'file_warning', 'file_error'],
+            'level': 'INFO' if not DEBUG else 'DEBUG',
             'propagate': False,
         },
     },
     'root': {
-        'handlers': ['console', 'file_debug', 'file_warning', 'file_error'],
-        'level': 'INFO',
+        'handlers': ['console', 'file_warning', 'file_error'],
+        'level': 'INFO' if not DEBUG else 'DEBUG',
     },
 }
 
@@ -366,10 +357,17 @@ else:
             "http://127.0.0.1:5173",
         ]
     else:
-        # In production, allow all origins (you can restrict this later with CORS_ALLOWED_ORIGINS)
-        # This allows Vercel and any other frontend deployment
-        # For better security, set CORS_ALLOWED_ORIGINS with your frontend domain(s)
-        CORS_ALLOW_ALL_ORIGINS = True
+        # In production, require CORS_ALLOWED_ORIGINS to be set
+        # If not set, default to empty list (no CORS allowed)
+        # Set CORS_ALLOWED_ORIGINS environment variable with your frontend domain(s)
+        if not CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS = []
+            import warnings
+            warnings.warn(
+                "CORS_ALLOWED_ORIGINS is not set in production. "
+                "Set CORS_ALLOWED_ORIGINS environment variable with your frontend domain(s).",
+                UserWarning
+            )
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -405,6 +403,7 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 else:
     # Development settings
     CSRF_COOKIE_SECURE = False

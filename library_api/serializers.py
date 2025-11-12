@@ -500,45 +500,14 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         logger = logging.getLogger(__name__)
         
         # Normalize email: trim whitespace and convert to lowercase
-        email = email.strip() if email else email
-        email_lower = email.lower() if email else email
+        email = email.strip().lower()
         
-        # Find user with exact email match (case-insensitive for email, but exact string match)
-        # This ensures only the exact email matches - no partial or similar matches
-        # Example: "test@example.com" will match "Test@Example.com" (case-insensitive)
-        # But "test@example.com" will NOT match "test123@example.com" (exact match required)
         try:
-            # Use case-insensitive exact match (__iexact) which matches exact email regardless of case
-            # This is standard email behavior - emails are case-insensitive
-            # But __iexact ensures it's an exact match, not a partial match
-            user = User.objects.filter(email__iexact=email_lower).first()
-            
-            if not user:
-                logger.info(f'Password reset requested for non-existent email: {email}')
-                return {'email_exists': False}
-            
-            # Verify the user's email exists and is not empty
-            if not user.email or user.email.strip() == '':
-                logger.warning(f'User {user.username} has no email address set')
-                return {'email_exists': False}
-            
-            # Double-check: compare normalized emails to ensure exact match
-            # This prevents any edge cases where database collation might allow partial matches
-            user_email_normalized = user.email.strip().lower()
-            if user_email_normalized != email_lower:
-                logger.warning(f'Email normalization mismatch: user email "{user.email}" normalized to "{user_email_normalized}" does not match requested "{email}" normalized to "{email_lower}"')
-                return {'email_exists': False}
-                
-        except User.MultipleObjectsReturned:
-            # Multiple users with same email (shouldn't happen, but handle it)
-            logger.error(f'Multiple users found with email: {email}')
-            # Still try to get one and proceed
             user = User.objects.filter(email__iexact=email).first()
-            if not user:
+            if not user or not user.email:
                 return {'email_exists': False}
         except Exception as e:
-            # Catch any database errors
-            logger.error(f'Error looking up user by email {email}: {str(e)}')
+            logger.error(f'Error looking up user: {str(e)}')
             return {'email_exists': False}
         
         # Generate token
@@ -572,61 +541,28 @@ Library Management System Team
         email_host_user = getattr(settings, 'EMAIL_HOST_USER', '')
         email_host_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
         
-        # Log configuration before validation
-        logger.info(f'Email configuration check for {email}')
-        logger.info(f'  EMAIL_BACKEND: {email_backend}')
-        logger.info(f'  EMAIL_HOST_USER: {"SET" if email_host_user else "NOT SET"}')
-        logger.info(f'  EMAIL_HOST_PASSWORD: {"SET" if email_host_password else "NOT SET"}')
-        logger.info(f'  DEFAULT_FROM_EMAIL: {from_email}')
-        
         # Set default from_email if not set
         if not from_email:
             from_email = email_host_user if email_host_user else 'noreply@library.com'
-            logger.warning(f'DEFAULT_FROM_EMAIL not set, using: {from_email}')
         
-        # Check if using console backend (development)
-        if 'console' in email_backend.lower():
-            logger.info('Using console email backend - email will be printed to terminal')
-            # Don't raise error for console backend, just log it
-        elif 'smtp' in email_backend.lower():
-            # For SMTP, check if credentials are set
-            if not email_host_user or not email_host_password:
-                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are required for SMTP. Please set these environment variables.'
-                logger.error(error_msg)
-                raise serializers.ValidationError({'email': [error_msg]})
+        # Check email backend configuration
+        if not settings.DEBUG and 'console' in email_backend.lower():
+            raise serializers.ValidationError({
+                'email': ['Email configuration error: Email service not configured properly. Please contact administrator.']
+            })
         
-        # Log email details for debugging
-        logger.info(f'Attempting to send password reset email to {email}')
-        logger.info(f'  Backend: {email_backend}')
-        logger.info(f'  From: {from_email}')
-        logger.info(f'  To: {email}')
-        logger.info(f'  Reset URL: {reset_url}')
+        if 'smtp' in email_backend.lower() and (not email_host_user or not email_host_password):
+            raise serializers.ValidationError({
+                'email': ['Email configuration error: Email service not configured properly. Please contact administrator.']
+            })
         
-        # Get timeout settings
+        # Send email
         email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
-        logger.info(f'  Timeout: {email_timeout} seconds')
-        
-        # Use connection with timeout to prevent hanging
         from django.core.mail import get_connection
-        connection = get_connection(
-            fail_silently=False,
-            timeout=email_timeout,
-        )
-        logger.info(f'Connection created with {email_timeout}s timeout')
-        
-        # Check if sending to self (same FROM and TO addresses)
-        if from_email and email and from_email.lower().strip() == email.lower().strip():
-            logger.info(f'  NOTE: Sending email to self (FROM={from_email}, TO={email})')
-            logger.info(f'  Some email providers may have restrictions on sending to yourself')
+        connection = get_connection(fail_silently=False, timeout=email_timeout)
         
         try:
-            # Check if we're in production with console backend (this shouldn't happen)
-            if not settings.DEBUG and 'console' in email_backend.lower():
-                error_msg = 'Email configuration error: EMAIL_HOST_USER and EMAIL_HOST_PASSWORD must be set in production. Console backend cannot send real emails.'
-                logger.error(error_msg)
-                raise serializers.ValidationError({'email': [error_msg]})
-            
-            result = send_mail(
+            send_mail(
                 subject,
                 message,
                 from_email,
@@ -634,69 +570,22 @@ Library Management System Team
                 fail_silently=False,
                 connection=connection,
             )
-            logger.info(f'✅ Password reset email sent successfully to {email}. Result: {result}')
-            
-            # In development with console backend, remind about console output
-            if 'console' in email_backend.lower():
-                logger.warning('NOTE: Email backend is set to console. Email was printed to terminal, not actually sent.')
-                # Still return success in development, but log warning
-                if settings.DEBUG:
-                    logger.info('In production, you must set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD to send real emails.')
+            logger.info(f'Password reset email sent to {email}')
         except Exception as e:
-            # Log detailed error for debugging
-            import traceback
             error_msg = str(e)
-            error_type = type(e).__name__
-            
-            logger.error(f'Error sending password reset email to {email}')
-            logger.error(f'Error type: {error_type}')
-            logger.error(f'Error message: {error_msg}')
-            logger.error(f'Traceback: {traceback.format_exc()}')
-            logger.error(f'Email backend: {email_backend}')
-            logger.error(f'From email: {from_email}')
-            logger.error(f'EMAIL_HOST_USER set: {bool(email_host_user)}')
-            logger.error(f'EMAIL_HOST: {getattr(settings, "EMAIL_HOST", "NOT SET")}')
-            logger.error(f'EMAIL_PORT: {getattr(settings, "EMAIL_PORT", "NOT SET")}')
-            
-            # Provide helpful error message based on error type
             error_lower = error_msg.lower()
+            logger.error(f'Error sending password reset email: {type(e).__name__}')
             
-            if '535' in error_msg or 'authentication failed' in error_lower or 'invalid credentials' in error_lower:
-                error_message = 'Email authentication failed. Please check EMAIL_HOST_USER and EMAIL_HOST_PASSWORD. For Gmail, use an App Password.'
-            elif '550' in error_msg or 'relay' in error_lower:
-                error_message = 'Email server rejected the request. Check if your email account allows SMTP access.'
-            elif 'connection' in error_lower or 'timeout' in error_lower or 'network' in error_lower or 'errno' in error_lower or 'gaierror' in error_lower:
-                port = getattr(settings, "EMAIL_PORT", "unknown")
-                host = getattr(settings, "EMAIL_HOST", "unknown")
-                use_ssl = getattr(settings, "EMAIL_USE_SSL", False)
-                use_tls = getattr(settings, "EMAIL_USE_TLS", False)
-                
-                # Provide specific guidance based on port
-                if port == 465:
-                    error_message = f'Unable to connect to {host}:{port}. Port 465 (SSL) may be blocked. SOLUTION: Update Render environment variables: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False. Then restart the service.'
-                elif port == 587:
-                    error_message = f'Unable to connect to {host}:{port}. This is often caused by hosting providers (like Render) blocking SMTP ports. SOLUTION: Use SendGrid or Mailgun instead of Gmail SMTP. Both offer free tiers and work reliably with Render. See: https://api.librarymanagementsystem.store/test-email/ for diagnostics, or check EMAIL_FIX_INSTRUCTIONS.md for setup guide.'
-                else:
-                    error_message = f'Unable to connect to {host}:{port}. For Gmail, use port 587 with TLS: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-            elif 'ssl' in error_lower or 'tls' in error_lower:
-                port = getattr(settings, "EMAIL_PORT", "unknown")
-                if port == 465:
-                    error_message = 'SSL/TLS error with port 465. Try port 587 with TLS instead: EMAIL_PORT=587, EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-                else:
-                    error_message = 'SSL/TLS connection error. Check EMAIL_USE_TLS and EMAIL_USE_SSL settings. For Gmail with port 587, use: EMAIL_USE_TLS=True, EMAIL_USE_SSL=False.'
-            elif 'smtplib' in error_type.lower() or 'smtp' in error_type.lower():
-                error_message = f'SMTP error: {error_msg}. Check your email server settings.'
+            # Provide user-friendly error message
+            if 'authentication' in error_lower or '535' in error_msg:
+                error_message = 'Email authentication failed. Please contact administrator.'
+            elif 'connection' in error_lower or 'timeout' in error_lower:
+                error_message = 'Unable to connect to email service. Please try again later.'
             elif settings.DEBUG:
-                error_message = f'Error sending email: {error_msg}. Check server logs for details.'
+                error_message = f'Error sending email: {error_msg}'
             else:
-                error_message = 'Error sending email. Please check your email configuration and try again later.'
+                error_message = 'Error sending email. Please try again later.'
             
-            # In debug mode, include more details
-            if settings.DEBUG:
-                error_message += f' (Error type: {error_type})'
-            
-            # Raise ValidationError with the error message
-            # Use a dict format to ensure proper serialization
             raise serializers.ValidationError({'email': [error_message]})
         
         # Return success with email_exists flag

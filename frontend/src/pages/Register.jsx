@@ -89,13 +89,12 @@ export default function Register() {
                 type="text"
                 required
                 className="input-field"
-                placeholder="Choose a username (spaces allowed)"
+                placeholder="Choose a username"
                 value={formData.username}
                 onChange={handleChange}
                 minLength={3}
                 autoComplete="username"
               />
-              <p className="mt-1 text-xs text-gray-500">Username can contain spaces and is case-insensitive</p>
             </div>
 
             <div>
