@@ -230,16 +230,28 @@ def test_email_connection(request):
     email_timeout = getattr(settings, 'EMAIL_TIMEOUT', 10)
     
     config_info = {
-        'EMAIL_HOST': email_host,
-        'EMAIL_PORT': email_port,
-        'EMAIL_USE_TLS': email_use_tls,
-        'EMAIL_USE_SSL': email_use_ssl,
-        'EMAIL_HOST_USER': email_host_user,
-        'EMAIL_HOST_PASSWORD': email_host_password,
         'EMAIL_BACKEND': email_backend,
         'EMAIL_TIMEOUT': email_timeout,
         'DEFAULT_FROM_EMAIL': getattr(settings, 'DEFAULT_FROM_EMAIL', 'NOT SET'),
     }
+    
+    # Add SMTP config only if using SMTP backend
+    if 'smtp' in email_backend.lower() and 'api' not in email_backend.lower():
+        config_info.update({
+            'EMAIL_HOST': email_host,
+            'EMAIL_PORT': email_port,
+            'EMAIL_USE_TLS': email_use_tls,
+            'EMAIL_USE_SSL': email_use_ssl,
+            'EMAIL_HOST_USER': email_host_user,
+            'EMAIL_HOST_PASSWORD': email_host_password,
+        })
+    else:
+        # Add API config for API backends
+        brevo_api_key = getattr(settings, 'BREVO_API_KEY', None)
+        config_info.update({
+            'BREVO_API_KEY': 'SET' if brevo_api_key else 'NOT SET',
+            'DEFAULT_FROM_NAME': getattr(settings, 'DEFAULT_FROM_NAME', 'NOT SET'),
+        })
     
     # Test 1: Socket connection test
     socket_test = {
@@ -270,14 +282,41 @@ def test_email_connection(request):
         socket_test['error'] = f'Unexpected error: {str(e)}'
         socket_test['message'] = f'Unexpected error: {type(e).__name__}'
     
-    # Test 2: SMTP connection test
-    smtp_test = {
+    # Test 2: Email backend test (SMTP or API)
+    backend_test = {
         'success': False,
         'message': '',
         'error': None
     }
     
-    if socket_test['success']:
+    # Check if using Brevo API backend
+    if 'brevo' in email_backend.lower() or 'api' in email_backend.lower():
+        # Test Brevo API connection
+        brevo_api_key = getattr(settings, 'BREVO_API_KEY', None)
+        if brevo_api_key:
+            try:
+                import requests
+                # Simple API test - check if API key is valid
+                test_url = 'https://api.brevo.com/v3/account'
+                headers = {
+                    'Accept': 'application/json',
+                    'api-key': brevo_api_key,
+                }
+                response = requests.get(test_url, headers=headers, timeout=email_timeout)
+                if response.status_code == 200:
+                    backend_test['success'] = True
+                    backend_test['message'] = 'Brevo API connection successful'
+                else:
+                    backend_test['error'] = f'API error: {response.status_code}'
+                    backend_test['message'] = f'Brevo API test failed: {response.status_code}'
+            except Exception as e:
+                backend_test['error'] = str(e)
+                backend_test['message'] = f'Brevo API test error: {type(e).__name__}'
+                logger.error(f'Brevo API test error: {str(e)}')
+        else:
+            backend_test['message'] = 'BREVO_API_KEY not set'
+    elif socket_test['success']:
+        # Test SMTP connection (for SMTP backends)
         try:
             logger.info('Testing SMTP connection')
             connection = get_connection(
@@ -286,14 +325,14 @@ def test_email_connection(request):
             )
             connection.open()
             connection.close()
-            smtp_test['success'] = True
-            smtp_test['message'] = 'SMTP connection successful'
+            backend_test['success'] = True
+            backend_test['message'] = 'SMTP connection successful'
         except Exception as e:
-            smtp_test['error'] = str(e)
-            smtp_test['message'] = f'SMTP connection failed: {type(e).__name__}'
+            backend_test['error'] = str(e)
+            backend_test['message'] = f'SMTP connection failed: {type(e).__name__}'
             logger.error(f'SMTP test error: {str(e)}')
     else:
-        smtp_test['message'] = 'Skipped - socket connection failed'
+        backend_test['message'] = 'Skipped - socket connection failed'
     
     # Test 3: Send test email (optional - only if POST)
     send_test = {
@@ -302,8 +341,16 @@ def test_email_connection(request):
         'error': None
     }
     
-    if request.method == 'POST' and socket_test['success']:
-        test_email = request.data.get('email', email_host_user if email_host_user != 'NOT SET' else None)
+    # For API backends, we can test sending even if socket test fails
+    # For SMTP backends, we need socket test to pass first
+    can_test_sending = False
+    if 'brevo' in email_backend.lower() or 'api' in email_backend.lower():
+        can_test_sending = backend_test['success']
+    else:
+        can_test_sending = socket_test['success']
+    
+    if request.method == 'POST' and can_test_sending:
+        test_email = request.data.get('email', getattr(settings, 'DEFAULT_FROM_EMAIL', None))
         if test_email:
             try:
                 from django.core.mail import send_mail
@@ -311,7 +358,7 @@ def test_email_connection(request):
                 result = send_mail(
                     'Test Email - Library Management System',
                     'This is a test email from the Library Management System.',
-                    getattr(settings, 'DEFAULT_FROM_EMAIL', email_host_user),
+                    getattr(settings, 'DEFAULT_FROM_EMAIL', test_email),
                     [test_email],
                     fail_silently=False,
                 )
@@ -323,16 +370,22 @@ def test_email_connection(request):
                 logger.error(f'Test email error: {str(e)}')
         else:
             send_test['message'] = 'No email address provided for test'
+    elif request.method == 'POST' and not can_test_sending:
+        send_test['message'] = 'Cannot send test email - backend connection failed'
     
     # Compile results
-    all_tests_passed = socket_test['success'] and (smtp_test['success'] if socket_test['success'] else True)
+    # For API backends, we don't need socket test to pass
+    if 'brevo' in email_backend.lower() or 'api' in email_backend.lower():
+        all_tests_passed = backend_test['success']
+    else:
+        all_tests_passed = socket_test['success'] and (backend_test['success'] if socket_test['success'] else True)
     
     response_data = {
         'status': 'success' if all_tests_passed else 'error',
         'configuration': config_info,
         'tests': {
             'socket_connection': socket_test,
-            'smtp_connection': smtp_test,
+            'email_backend': backend_test,
             'send_email': send_test if request.method == 'POST' else {'message': 'Use POST with {"email": "test@example.com"} to test sending'}
         },
         'recommendations': []

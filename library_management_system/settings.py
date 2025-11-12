@@ -427,14 +427,23 @@ SESSION_COOKIE_AGE = 86400  # 1 day
 # FRONTEND_URL: frontend URL for password reset links (e.g., 'http://localhost:3000' or 'https://yourdomain.com')
 
 # Email Backend Configuration
-# If EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set, use SMTP backend
-# Otherwise, use console backend for development (emails printed to terminal)
+# Priority: Brevo API > SMTP > Console
+# Brevo API works on Render (uses HTTPS, not SMTP ports)
+
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '').strip().strip('"').strip("'")
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip().strip('"').strip("'")
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip().strip('"').strip("'")
 
 # Auto-detect email backend based on configuration
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
-    # Use SMTP backend if credentials are provided (real emails)
+# Prefer Brevo API if API key is set (works on Render)
+if BREVO_API_KEY:
+    # Use Brevo API backend (works on Render - uses HTTPS)
+    EMAIL_BACKEND = os.getenv(
+        'EMAIL_BACKEND',
+        'library_api.email_backends.BrevoAPIEmailBackend'
+    )
+elif EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    # Use SMTP backend if credentials are provided (may not work on Render)
     EMAIL_BACKEND = os.getenv(
         'EMAIL_BACKEND',
         'django.core.mail.backends.smtp.EmailBackend'
@@ -460,10 +469,12 @@ if EMAIL_USE_TLS and EMAIL_USE_SSL:
     EMAIL_USE_SSL = False
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@library.com')
+DEFAULT_FROM_NAME = os.getenv('DEFAULT_FROM_NAME', 'Library Management System')
 
 # SMTP Connection Timeouts (CRITICAL - prevents worker timeouts)
 # These prevent the email send from hanging indefinitely and causing worker timeouts
-EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))  # 10 seconds timeout for SMTP operations
+# Also used for API timeouts (Brevo API)
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))  # 10 seconds timeout for email operations
 
 # Frontend URL for password reset links
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

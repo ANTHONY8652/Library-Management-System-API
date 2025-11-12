@@ -30,3 +30,6 @@ whitenoise==6.6.0
 
 # Setuptools (required for pkg_resources)
 setuptools>=65.0.0
+
+# HTTP requests for email API (Brevo)
+requests>=2.31.0
