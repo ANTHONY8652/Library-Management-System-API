@@ -165,7 +165,6 @@ def run_migrations(request):
             'message': 'Permission denied. Admin access only.',
         }, status=403)
     """
-    
     try:
         out = StringIO()
         err = StringIO()
@@ -187,7 +186,7 @@ def run_migrations(request):
             'error': str(e) if settings.DEBUG else 'Migration failed. Check server logs.',
             'traceback': traceback.format_exc() if settings.DEBUG else None
         }, status=500)
-run_migrations.permission_classes = [permissions.IsAuthenticated]
+#run_migrations.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET', 'POST'])
 def test_email_connection(request):
