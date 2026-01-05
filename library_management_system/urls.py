@@ -476,3 +476,52 @@ if schema_view:
         path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
         path('redoc/', redoc_ui_wrapper, name='schema-redoc-with-ui'),
     ]
+
+from django.contrib.auth import get_user_model
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework import status
+
+User = get_user_model()
+
+@csrf_exempt
+@api_view(['POST'])
+def create_admin_user(request):
+    """
+    Create a superuser/admin user.
+    Use only once, then REMOVE the endpoint!
+    """
+    data = request.data
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not username or not email or not password:
+        return Response({
+            "status": "error",
+            "message": "username, email, and password are required"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(username=username).exists():
+        return Response({
+            "status": "error",
+            "message": "User already exists"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password
+        )
+        return Response({
+            "status": "success",
+            "message": f"Admin user '{username}' created successfully"
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+path('create-admin/', create_admin_user, name='create-admin-user'),
+
