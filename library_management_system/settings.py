@@ -168,6 +168,7 @@ DATABASES = {
         'HOST': os.getenv("DB_HOST", "localhost"),
         'PORT': os.getenv("DB_PORT", "5432"),
         'OPTIONS': {
+            'sslmode': 'require',
             'connect_timeout': 10,
         },
         'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
