@@ -434,49 +434,6 @@ def root_view(request):
             'documentation': '/swagger/',
             'api': '/api/'
         })
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('library_api.urls')),
-    path('health/', health_check, name='health-check'),
-    path('health/db/', db_health_check, name='db-health-check'),
-    path('migrate/', run_migrations, name='run-migrations'),
-    path('test-email/', test_email_connection_admin_check, name='test-email-connection'),
-    path('', root_view, name='root'),
-]
-
-# Add Swagger/ReDoc URLs only if schema_view is available
-# Swagger/ReDoc are secured to admin only
-def swagger_ui_wrapper(request):
-    """Wrapper to check admin access for Swagger UI"""
-    if not check_admin_access(request.user):
-        if not request.user.is_authenticated:
-            return JsonResponse({
-                'error': 'Authentication required. Admin access only.',
-            }, status=401)
-        return JsonResponse({
-            'error': 'Permission denied. Admin access only.',
-        }, status=403)
-    return schema_view.with_ui('swagger', cache_timeout=0)(request)
-
-def redoc_ui_wrapper(request):
-    """Wrapper to check admin access for ReDoc UI"""
-    if not check_admin_access(request.user):
-        if not request.user.is_authenticated:
-            return JsonResponse({
-                'error': 'Authentication required. Admin access only.',
-            }, status=401)
-        return JsonResponse({
-            'error': 'Permission denied. Admin access only.',
-        }, status=403)
-    return schema_view.with_ui('redoc', cache_timeout=0)(request)
-
-if schema_view:
-    urlpatterns += [
-        path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
-        path('redoc/', redoc_ui_wrapper, name='schema-redoc-with-ui'),
-    ]
-
 from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
@@ -523,5 +480,48 @@ def create_admin_user(request):
             "status": "error",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-path('create-admin/', create_admin_user, name='create-admin-user'),
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('library_api.urls')),
+    path('health/', health_check, name='health-check'),
+    path('health/db/', db_health_check, name='db-health-check'),
+    path('migrate/', run_migrations, name='run-migrations'),
+    path('test-email/', test_email_connection_admin_check, name='test-email-connection'),
+    path('', root_view, name='root'),
+    path('create-admin/', create_admin_user, name='create-admin-user'),
+
+]
+
+# Add Swagger/ReDoc URLs only if schema_view is available
+# Swagger/ReDoc are secured to admin only
+def swagger_ui_wrapper(request):
+    """Wrapper to check admin access for Swagger UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return JsonResponse({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return schema_view.with_ui('swagger', cache_timeout=0)(request)
+
+def redoc_ui_wrapper(request):
+    """Wrapper to check admin access for ReDoc UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return JsonResponse({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return schema_view.with_ui('redoc', cache_timeout=0)(request)
+
+if schema_view:
+    urlpatterns += [
+        path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
+        path('redoc/', redoc_ui_wrapper, name='schema-redoc-with-ui'),
+    ]
 
