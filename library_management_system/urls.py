@@ -63,7 +63,6 @@ except Exception as e:
 @api_view(['GET'])
 def health_check(request):
     """Simple health check endpoint - SECURED: Admin only"""
-    """
     if not check_admin_access(request.user):
         if not request.user.is_authenticated:
             return Response({
@@ -74,7 +73,6 @@ def health_check(request):
             'status': 'error',
             'message': 'Permission denied. Admin access only.',
         }, status=403)
-    """
     return Response({
         'status': 'healthy',
         'service': 'Library Management API',
@@ -153,7 +151,6 @@ def run_migrations(request):
     from django.core.management import call_command
     from io import StringIO
 
-    """
     if not check_admin_access(request.user):
         if not request.user.is_authenticated:
             return Response({
@@ -164,7 +161,6 @@ def run_migrations(request):
             'status': 'error',
             'message': 'Permission denied. Admin access only.',
         }, status=403)
-    """
     try:
         out = StringIO()
         err = StringIO()
@@ -186,7 +182,7 @@ def run_migrations(request):
             'error': str(e) if settings.DEBUG else 'Migration failed. Check server logs.',
             'traceback': traceback.format_exc() if settings.DEBUG else None
         }, status=500)
-#run_migrations.permission_classes = [permissions.IsAuthenticated]
+run_migrations.permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET', 'POST'])
 def test_email_connection(request):
@@ -418,7 +414,6 @@ def test_email_connection_admin_check(request):
 
 test_email_connection.permission_classes = [permissions.IsAuthenticated]
 
-# create_admin_user function removed for security - use Django admin or management commands instead
 
 def root_view(request):
     """Root endpoint - redirects to Swagger UI"""
@@ -433,20 +428,15 @@ def root_view(request):
             'documentation': '/swagger/',
             'api': '/api/'
         })
-from django.contrib.auth import get_user_model
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.decorators import api_view
-from rest_framework import status
 
+"""
 User = get_user_model()
 
 @csrf_exempt
 @api_view(['POST'])
 def create_admin_user(request):
-    """
     Create a superuser/admin user.
-    Use only once, then REMOVE the endpoint!
-    """
+    Use only once, then REMOVE the endpoint please bruddaaaa!
     data = request.data
     username = data.get('username')
     email = data.get('email')
@@ -479,7 +469,7 @@ def create_admin_user(request):
             "status": "error",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+"""
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('library_api.urls')),
@@ -488,8 +478,6 @@ urlpatterns = [
     path('migrate/', run_migrations, name='run-migrations'),
     path('test-email/', test_email_connection_admin_check, name='test-email-connection'),
     path('', root_view, name='root'),
-    path('create-admin/', create_admin_user, name='create-admin-user'),
-
 ]
 
 # Add Swagger/ReDoc URLs only if schema_view is available
