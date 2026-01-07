@@ -22,19 +22,19 @@ class IsMemberUser(BasePermission):
 class CanViewBook(BasePermission):
     def has_permission(self, request, view):
         # Allow read operations (GET, HEAD, OPTIONS) for everyone (anonymous users included)
-        if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return True  # Allow anonymous users to view books
+        if request.method in SAFE_METHODS:
+            return True  # Allow even (anonymous) users to view books
         
         # For write operations (POST, PUT, PATCH, DELETE), require authentication and proper role
         if not request.user.is_authenticated:
             return False
             
         try:
-            return request.user.userprofile.role in ['admin', 'member']
+            return request.user.userprofile.role == 'admin'
         except:
             return False
         
-        return False
+        #return False
 
 class CanDeleteBook(BasePermission):
     def has_permission(self, request, view):
@@ -52,25 +52,5 @@ class IsAdminOrMember(BasePermission):
             return False
         try:
             return request.user.userprofile.role in ['admin', 'member']
-        except:
-            return False
-
-class IsAdminOrReadOnly(BasePermission):
-    """
-    - Allow READ (GET, HEAD, OPTIONS) for everyone
-    - Allow WRITE only for admin users
-    """
-
-    def has_permission(self, request, view):
-        # SAFE_METHODS = GET, HEAD, OPTIONS
-        if request.method in SAFE_METHODS:
-            return True  # Public read access
-
-        # Write actions → must be authenticated admin
-        if not request.user.is_authenticated:
-            return False
-
-        try:
-            return request.user.userprofile.role == UserProfile.ADMIN
         except:
             return False
