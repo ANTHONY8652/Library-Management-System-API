@@ -11,6 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 
+
 class BookSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         title = attrs.get('title')
@@ -95,7 +96,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = ['id', 'book', 'user', 'checkout_date', 'return_date', 'due_date', 'overdue_penalty']
         extra_kwargs = {
-            'user': {'required': False},
+            'user': {'required': False, 'read_only': True},
             'checkout_date': {'required': False},
             'due_date': {'required': False},
             'return_date': {'required': False}
