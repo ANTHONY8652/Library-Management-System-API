@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import UserProfile
 
 class IsAdminUser(BasePermission):
@@ -26,11 +26,14 @@ class CanViewBook(BasePermission):
             return True  # Allow anonymous users to view books
         
         # For write operations (POST, PUT, PATCH, DELETE), require authentication and proper role
-        if request.user.is_authenticated:
-            try:
-                return request.user.userprofile.role in ['admin', 'member']
-            except:
-                return False
+        if not request.user.is_authenticated:
+            return False
+            
+        try:
+            return request.user.userprofile.role in ['admin', 'member']
+        except:
+            return False
+        
         return False
 
 class CanDeleteBook(BasePermission):
@@ -49,5 +52,25 @@ class IsAdminOrMember(BasePermission):
             return False
         try:
             return request.user.userprofile.role in ['admin', 'member']
+        except:
+            return False
+
+class IsAdminOrReadOnly(BasePermission):
+    """
+    - Allow READ (GET, HEAD, OPTIONS) for everyone
+    - Allow WRITE only for admin users
+    """
+
+    def has_permission(self, request, view):
+        # SAFE_METHODS = GET, HEAD, OPTIONS
+        if request.method in SAFE_METHODS:
+            return True  # Public read access
+
+        # Write actions → must be authenticated admin
+        if not request.user.is_authenticated:
+            return False
+
+        try:
+            return request.user.userprofile.role == UserProfile.ADMIN
         except:
             return False
