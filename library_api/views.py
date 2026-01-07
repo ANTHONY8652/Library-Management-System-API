@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from django_filters import rest_framework as filters
 from .models import Book, Transaction, UserProfile
 from .serializers import BookSerializer, TransactionSerializer, UserProfileSerializer, UserRegistrationSerializer, UserLoginSerializer, TokenObtainPairSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer, PasswordResetOTPRequestSerializer, PasswordResetOTPVerifySerializer
-from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember
+from .permissions import IsAdminUser, IsMemberUser, CanDeleteBook, CanViewBook, IsAdminOrMember, IsAdminOrReadOnly
 from django.shortcuts import render
 from rest_framework.response import Response
 from django.utils import timezone
@@ -33,7 +33,7 @@ class MyCursorPagination(CursorPagination):
 
 class BookListCreateView(generics.ListCreateAPIView):
     serializer_class = BookSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, CanViewBook]
+    permission_classes = [IsdminOrReadOnly, CanViewBook]
     pagination_class = StandardResultsSetPagination
     ordering_fields = ['title', 'published_date']
     
@@ -42,7 +42,7 @@ class BookListCreateView(generics.ListCreateAPIView):
 
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BookSerializer
-    permission_classes = [CanViewBook]
+    permission_classes = [CanViewBook, IsAdminOrReadOnly]
     
     def get_queryset(self):
         try:
