@@ -112,19 +112,6 @@ access.log
 *.code-workspace
 
 # ============================================
-# OS Files
-# ============================================
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# ============================================
 # Testing & Coverage
 # ============================================
 htmlcov/
@@ -197,7 +184,7 @@ celerybeat.pid
 .render/
 
 # ============================================
-# Documentation (keep only README.md)
+# Documentation
 # ============================================
 # Email setup guides (remove if not needed)
 EMAIL_FIX_INSTRUCTIONS.md
@@ -207,18 +194,3 @@ BREVO_SETUP.md
 BREVO_SETUP_STEP_BY_STEP.md
 BREVO_API_SETUP.md
 EMAIL_SERVICE_ALTERNATIVES.md
-
-# ============================================
-# Documentation (Internal Guides)
-# ============================================
-CODE_ARCHITECTURE_AND_DATA_FLOW.md
-
-# ============================================
-# Project Specific
-# ============================================
-# Windows batch files (optional - uncomment if you don't want to track them)
-# *.bat
-# *.ps1
-
-# Runtime files (keep runtime.txt for deployment, but ignore if you prefer)
-# runtime.txt
