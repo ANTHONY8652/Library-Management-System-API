@@ -19,8 +19,8 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from drf_yasg.views import get_schema_view
-from drf_yasg import openapi
+from drf_spectacular.views import get_schema_view
+from drf_spectacular import openapi
 from rest_framework import permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
