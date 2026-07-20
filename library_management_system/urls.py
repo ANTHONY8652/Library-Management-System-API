@@ -19,7 +19,8 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from drf_spectacular.views import get_schema_view
+from drf_spectacular.views import SpectacularRedocView,
+SpectacularSwaggerView,
 from drf_spectacular import openapi
 from rest_framework import permissions
 from rest_framework.decorators import api_view
@@ -39,7 +40,7 @@ def check_admin_access(user):
         return False
 
 try:
-    schema_view = get_schema_view(
+    schema_view = SpectacularAPIView(
         openapi.Info(
             title='Library Management API',
             default_version = '1.0.0',
@@ -492,7 +493,7 @@ def swagger_ui_wrapper(request):
         return JsonResponse({
             'error': 'Permission denied. Admin access only.',
         }, status=403)
-    return schema_view.with_ui('swagger', cache_timeout=0)(request)
+    return SpectacularSwaggerView.as_view(url_name='swagger')(request)
 
 def redoc_ui_wrapper(request):
     """Wrapper to check admin access for ReDoc UI"""
@@ -504,11 +505,11 @@ def redoc_ui_wrapper(request):
         return JsonResponse({
             'error': 'Permission denied. Admin access only.',
         }, status=403)
-    return schema_view.with_ui('redoc', cache_timeout=0)(request)
+    return SpectacularRedocView.as_view(url_name='redoc')(request)
 
 if schema_view:
     urlpatterns += [
         path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
-        path('redoc/', redoc_ui_wrapper, name='schema-redoc-with-ui'),
+        path('redoc/', redoc_ui_wrapper, name='schema-redoc-ui'),
     ]
 

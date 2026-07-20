@@ -474,3 +474,9 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Password reset token timeout (in seconds) - default is 3 days
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '259200'))  # 3 days
 
+# settings.py
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Library Management System API',
+    'VERSION': '1.0.0',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'],
+}
