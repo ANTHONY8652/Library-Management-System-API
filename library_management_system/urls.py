@@ -19,8 +19,7 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from drf_spectacular.views import SpectacularRedocView,
-SpectacularSwaggerView,
+from drf_spectacular.views import SpectacularRedocView, SpectacularSwaggerView
 from drf_spectacular import openapi
 from rest_framework import permissions
 from rest_framework.decorators import api_view
