@@ -520,8 +520,7 @@ urlpatterns = [
 # Add Swagger/ReDoc URLs only if schema_view is available
 # Swagger/ReDoc are secured to admin only
 def swagger_ui_wrapper(request):
-    """Wrapper to check admin access for Swagger UI"""
-    if not check_admin_access(request.user):
+    Wrapper to check admin access for Swagger UI    if not check_admin_access(request.user):
         if not request.user.is_authenticated:
             return JsonResponse({
                 'error': 'Authentication required. Admin access only.',
