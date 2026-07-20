@@ -116,6 +116,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'library_api.middleware.SecurityHeadersMiddleware',
 ]
 
 ROOT_URLCONF = 'library_management_system.urls'
@@ -216,6 +217,11 @@ USE_TZ = os.getenv("USE_TZ", "True").lower() in ("true", "1", "yes")
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+#Security Headers
+X_FRAME_OPTIONS = "SAMEORIGIN"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
 
 # Additional directories for static files (only if they exist)
 STATICFILES_DIRS = []
