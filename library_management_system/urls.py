@@ -19,7 +19,11 @@ from django.urls import path, include
 from django.shortcuts import redirect
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from drf_spectacular.views import SpectacularRedocView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from drf_spectacular import openapi
 from rest_framework import permissions
 from rest_framework.decorators import api_view
@@ -37,9 +41,9 @@ def check_admin_access(user):
         return user.userprofile.role == 'admin'
     except:
         return False
-
+"""
 try:
-    schema_view = SpectacularAPIView(
+    schema_view = SpectacularSwaggerView(
         openapi.Info(
             title='Library Management API',
             default_version = '1.0.0',
@@ -49,8 +53,8 @@ try:
                 "authentication, book management, and user interactions, including borrowing and "
                 "returning books, managing user accounts, and tracking book availability."
             ),
-            terms_of_service="https://yourdomain.com/terms/",
-            contact = openapi.Contact(email=os.getenv('ADMIN_EMAIL', 'admin@yourdomain.com')),
+            terms_of_service="https://googlepolicies.com/terms/",
+            contact = openapi.Contact(email=os.getenv('ADMIN_EMAIL', 'githinjianthony720@gmail.com')),
             license = openapi.License(name='BSD License'),
         ),
         public=False,
@@ -59,6 +63,7 @@ try:
 except Exception as e:
     # Fallback if schema generation fails
     schema_view = None
+"""
 
 @api_view(['GET'])
 def health_check(request):
@@ -470,6 +475,34 @@ def create_admin_user(request):
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 """
+
+# Add Swagger/ReDoc URLs only if schema_view is available
+# Swagger/ReDoc are secured to admin only
+def swagger_ui_wrapper(request):
+    """Wrapper to check admin access for Swagger UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return JsonResponse({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return SpectacularSwaggerView.as_view(url_name='swagger')(request)
+
+def redoc_ui_wrapper(request):
+    """Wrapper to check admin access for ReDoc UI"""
+    if not check_admin_access(request.user):
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'error': 'Authentication required. Admin access only.',
+            }, status=401)
+        return JsonResponse({
+            'error': 'Permission denied. Admin access only.',
+        }, status=403)
+    return SpectacularRedocView.as_view(url_name='redoc')(request)
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('library_api.urls')),
@@ -478,8 +511,12 @@ urlpatterns = [
     path('migrate/', run_migrations, name='run-migrations'),
     path('test-email/', test_email_connection_admin_check, name='test-email-connection'),
     path('', root_view, name='root'),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('swagger/', swagger_ui_wrapper, name='schema-swagger-ui'),
+    path('redoc/', redoc_ui_wrapper, name='schema-redoc-ui'),
 ]
 
+"""
 # Add Swagger/ReDoc URLs only if schema_view is available
 # Swagger/ReDoc are secured to admin only
 def swagger_ui_wrapper(request):
@@ -512,3 +549,4 @@ if schema_view:
         path('redoc/', redoc_ui_wrapper, name='schema-redoc-ui'),
     ]
 
+"""
