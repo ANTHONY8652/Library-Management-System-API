@@ -1,14 +1,21 @@
 class SecurityHeadersMiddleware:
+    #Injects modern missing security headers (CSP & Permissions-Policy)"""
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         response = self.get_response(request)
 
-        # Restrict sensitive features by default
-        response['Permissions-Policy'] = "geolocation=(), microphone=(), camera=()"
+        # Content Security Policy (allows inline scripts/styles for Swagger & Redoc)
+        response['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:;"
+        )
 
-        # Basic CSP (adjust directives as needed for your static/media files)
-        response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+        # Permissions Policy
+        response['Permissions-Policy'] = "geolocation=(), microphone=(), camera=(), payment=()"
 
         return response
