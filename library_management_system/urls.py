@@ -420,19 +420,20 @@ def test_email_connection_admin_check(request):
 test_email_connection.permission_classes = [permissions.IsAuthenticated]
 
 
+@api_view(['GET'])
 def root_view(request):
-    """Root endpoint - redirects to Swagger UI"""
-    if schema_view:
+    #Root endpoint - redirects admins to Swagger, or returns status info."""
+    # Redirect if user is an admin/staff who can view Swagger
+    if check_admin_access(request.user):
         return redirect('/swagger/')
-    else:
-        # Fallback if Swagger is not available
-        from rest_framework.response import Response
-        return Response({
-            'message': 'Library Management System API',
-            'version': '1.0.0',
-            'documentation': '/swagger/',
-            'api': '/api/'
-        })
+
+    # Default JSON status response for standard users, health checks, or bots
+    return Response({
+        'message': 'Library Management System API',
+        'version': '1.0.0',
+        'documentation': '/swagger/',
+        'api': '/api/'
+    })
 
 """
 User = get_user_model()
