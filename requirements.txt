@@ -8,7 +8,7 @@ djangorestframework==3.14.0
 drf-yasg==1.21.7
 
 # Authentication
-djangorestframework-simplejwt==5.2.2
+djangorestframework-simplejwt==5.3.1
 
 # Database (using psycopg3 for Python 3.13 compatibility)
 psycopg[binary]>=3.1.0
@@ -33,3 +33,6 @@ setuptools>=65.0.0
 
 # HTTP requests for email API (Brevo)
 requests>=2.31.0
+
+#setup tools for pkg resources
+setuptools
