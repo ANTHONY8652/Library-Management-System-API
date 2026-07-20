@@ -491,7 +491,7 @@ def swagger_ui_wrapper(request):
     return SpectacularSwaggerView.as_view(url_name='swagger')(request)
 
 def redoc_ui_wrapper(request):
-    """Wrapper to check admin access for ReDoc UI"""
+    #Wrapper to check admin access for ReDoc UI
     if not check_admin_access(request.user):
         if not request.user.is_authenticated:
             return JsonResponse({
